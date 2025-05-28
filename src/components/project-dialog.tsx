@@ -234,26 +234,7 @@ export function ProjectDialog({ onOpenChange, ...props }: ProjectDialogProps) {
             </div>
           </div>
         </div>
-        <DialogFooter>
-          <p className="text-muted-foreground text-sm mt-4 w-full text-center">
-            This is an{" "}
-            <a
-              className="underline underline-offset-2 decoration-foreground/50 text-foreground"
-              href="https://github.com/fal-ai-community/video-starter-kit"
-            >
-              open-source
-            </a>{" "}
-            project developed by{" "}
-            <a
-              className="underline underline-offset-2 decoration-foreground/50 text-foreground"
-              href="https://fal.ai"
-            >
-              {" "}
-              fal.ai
-            </a>{" "}
-            and its partners.
-          </p>
-        </DialogFooter>
+        
       </DialogContent>
     </Dialog>
   );
