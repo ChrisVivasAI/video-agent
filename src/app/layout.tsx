@@ -4,14 +4,23 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Chris Vivas AI Content Creation Suite",
-  description: "Professional AI-powered content creation suite for video generation, editing, and multimedia production. Create stunning videos with advanced AI models and intuitive tools.",
-  keywords: ["AI video", "content creation", "video editing", "Chris Vivas", "AI tools", "video generation"],
+  description:
+    "Professional AI-powered content creation suite for video generation, editing, and multimedia production. Create stunning videos with advanced AI models and intuitive tools.",
+  keywords: [
+    "AI video",
+    "content creation",
+    "video editing",
+    "Chris Vivas",
+    "AI tools",
+    "video generation",
+  ],
   authors: [{ name: "Chris Vivas" }],
   creator: "Chris Vivas",
   publisher: "Chris Vivas Studio",
   openGraph: {
     title: "Chris Vivas AI Content Creation Suite",
-    description: "Professional AI-powered content creation suite for video generation, editing, and multimedia production. Create stunning videos with advanced AI models and intuitive tools.",
+    description:
+      "Professional AI-powered content creation suite for video generation, editing, and multimedia production. Create stunning videos with advanced AI models and intuitive tools.",
     url: "https://chrisvivas.ai",
     siteName: "Chris Vivas Studio",
     images: [
@@ -28,7 +37,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Chris Vivas AI Content Creation Suite",
-    description: "Professional AI-powered content creation suite for video generation, editing, and multimedia production.",
+    description:
+      "Professional AI-powered content creation suite for video generation, editing, and multimedia production.",
     creator: "@chrisvivas",
     images: ["/hero pic.png"],
   },

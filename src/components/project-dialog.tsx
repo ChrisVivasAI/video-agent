@@ -234,7 +234,6 @@ export function ProjectDialog({ onOpenChange, ...props }: ProjectDialogProps) {
             </div>
           </div>
         </div>
-        
       </DialogContent>
     </Dialog>
   );
