@@ -2,8 +2,16 @@
 
 import { createFalClient } from "@fal-ai/client";
 
+// Safe localStorage access for SSR
+const getCredentials = (): string | undefined => {
+  if (typeof window !== "undefined" && window.localStorage) {
+    return localStorage.getItem("falKey") || undefined;
+  }
+  return undefined;
+};
+
 export const fal = createFalClient({
-  credentials: () => localStorage?.getItem("falKey") as string,
+  credentials: getCredentials,
   proxyUrl: "/api/fal",
 });
 
@@ -36,6 +44,13 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     endpointId: "fal-ai/flux/dev",
     label: "Flux Dev",
     description: "Generate a video from a text prompt",
+    cost: "",
+    category: "image",
+  },
+  {
+    endpointId: "fal-ai/imagen4/preview",
+    label: "Google Imagen 4",
+    description: "Generate a images from a text prompt",
     cost: "",
     category: "image",
   },

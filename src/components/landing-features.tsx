@@ -20,8 +20,8 @@ const features = [
   },
   {
     icon: Code,
-    title: "Open-Source",
-    description: "Built on open-source technologies and available to everyone.",
+    title: "Custom Features",
+    description: "Contact me for custom features and integrations.",
   },
 ];
 

@@ -9,7 +9,7 @@ export default function Header() {
         <div className="flex flex-1">
           <Link href="/" className="flex items-center space-x-2">
             <Video className="w-6 h-6" />
-            <span className="font-semibold">fal.ai</span>
+            <span className="font-semibold">Chris Vivas AI</span>
           </Link>
         </div>
 
@@ -24,13 +24,13 @@ export default function Header() {
             href="#community"
             className="text-sm text-gray-400 hover:text-white transition-colors"
           >
-            Community
+            About Me
           </Link>
           <Link
-            href="https://github.com/fal-ai-community/video-starter-kit"
+            href="https://www.linkedin.com/in/christian-vivas-468371165/"
             className="text-sm text-gray-400 hover:text-white transition-colors"
           >
-            GitHub
+            LinkedIn
           </Link>
         </nav>
 

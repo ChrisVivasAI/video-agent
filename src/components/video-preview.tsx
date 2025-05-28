@@ -223,11 +223,20 @@ export default function VideoPreview() {
     let maxTimestamp = 0;
     for (const trackFrames of Object.values(frames)) {
       for (const frame of trackFrames) {
-        maxTimestamp = Math.max(maxTimestamp, frame.timestamp);
+        const endTime = frame.timestamp + frame.duration;
+        maxTimestamp = Math.max(maxTimestamp, endTime);
       }
     }
-    // Add 5 seconds padding after the last frame
-    return Math.max(DEFAULT_DURATION, Math.ceil((maxTimestamp + 5000) / 1000));
+    // Convert to seconds and add padding, ensure it's finite
+    const durationInSeconds = Math.ceil(maxTimestamp / 1000) + 5;
+    const finalDuration = Math.max(DEFAULT_DURATION, durationInSeconds);
+
+    // Ensure we never return Infinity or NaN
+    if (!isFinite(finalDuration) || isNaN(finalDuration)) {
+      return DEFAULT_DURATION;
+    }
+
+    return Math.min(finalDuration, 30); // Cap at 30 seconds
   }, [frames]);
 
   const duration = calculateDuration();

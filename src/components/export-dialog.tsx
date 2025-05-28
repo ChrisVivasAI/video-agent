@@ -24,9 +24,14 @@ import {
   FilmIcon,
 } from "lucide-react";
 import { Input } from "./ui/input";
-import type { ShareVideoParams } from "@/lib/share";
+import {
+  uploadVideoFromUrl,
+  storeSharedVideo,
+  type SharedVideo,
+} from "@/lib/supabase";
 import { PROJECT_PLACEHOLDER } from "@/data/schema";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 type ExportDialogProps = {} & Parameters<typeof Dialog>[0];
 
@@ -35,13 +40,21 @@ type ShareResult = {
   thumbnail_url: string;
 };
 
+type ExportedVideo = {
+  originalUrl: string;
+  supabaseUrl: string;
+  thumbnailUrl: string;
+};
+
 export function ExportDialog({ onOpenChange, ...props }: ExportDialogProps) {
   const projectId = useProjectId();
   const { data: composition = EMPTY_VIDEO_COMPOSITION } =
     useVideoComposition(projectId);
   const router = useRouter();
+  const { toast } = useToast();
+
   const exportVideo = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<ExportedVideo> => {
       const mediaItems = composition.mediaItems;
       const videoData = composition.tracks.map((track) => ({
         id: track.id,
@@ -55,6 +68,8 @@ export function ExportDialog({ onOpenChange, ...props }: ExportDialogProps) {
       if (videoData.length === 0) {
         throw new Error("No tracks to export");
       }
+
+      // Step 1: Generate video with FAL AI
       const { data } = await fal.subscribe("fal-ai/ffmpeg-api/compose", {
         input: {
           tracks: videoData,
@@ -62,7 +77,29 @@ export function ExportDialog({ onOpenChange, ...props }: ExportDialogProps) {
         mode: "polling",
         pollInterval: 3000,
       });
-      return data as ShareResult;
+
+      const falResult = data as ShareResult;
+
+      // Step 2: Upload video to Supabase
+      const fileName = `${project.title || "video"}-${Date.now()}.mp4`;
+      const uploadedVideo = await uploadVideoFromUrl(
+        falResult.video_url,
+        fileName,
+        "videos",
+      );
+
+      return {
+        originalUrl: falResult.video_url,
+        supabaseUrl: uploadedVideo.url,
+        thumbnailUrl: falResult.thumbnail_url,
+      };
+    },
+    onError: (error) => {
+      toast({
+        title: "Export failed",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
   const setExportDialogOpen = useVideoProjectStore(
@@ -80,26 +117,27 @@ export function ExportDialog({ onOpenChange, ...props }: ExportDialogProps) {
         throw new Error("No video to share");
       }
       const videoInfo = exportVideo.data;
-      const response = await fetch("/api/share", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: project.title,
-          description: project.description ?? "",
-          videoUrl: videoInfo.video_url,
-          thumbnailUrl: videoInfo.thumbnail_url,
-          createdAt: Date.now(),
-          // TODO parametrize this
-          width: 1920,
-          height: 1080,
-        } satisfies ShareVideoParams),
+
+      // Store video metadata in Supabase
+      const shareId = await storeSharedVideo({
+        title: project.title,
+        description: project.description ?? "",
+        videoUrl: videoInfo.supabaseUrl,
+        thumbnailUrl: videoInfo.thumbnailUrl,
+        createdAt: Date.now(),
+        width: 1920,
+        height: 1080,
+        projectId: projectId,
       });
-      if (!response.ok) {
-        throw new Error("Failed to share video");
-      }
-      return response.json();
+
+      return { id: shareId };
+    },
+    onError: (error) => {
+      toast({
+        title: "Share failed",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -143,7 +181,7 @@ export function ExportDialog({ onOpenChange, ...props }: ExportDialogProps) {
             </div>
           ) : (
             <video
-              src={exportVideo.data.video_url}
+              src={exportVideo.data.supabaseUrl}
               controls
               className="w-full h-full"
             />
@@ -152,7 +190,7 @@ export function ExportDialog({ onOpenChange, ...props }: ExportDialogProps) {
         <div className="flex flex-col gap-4">
           <div className="flex flex-row gap-2 items-center">
             <Input
-              value={exportVideo.data?.video_url ?? ""}
+              value={exportVideo.data?.supabaseUrl ?? ""}
               placeholder="Video URL..."
               readOnly
               className="text-muted-foreground"
@@ -161,7 +199,9 @@ export function ExportDialog({ onOpenChange, ...props }: ExportDialogProps) {
               size="icon"
               variant="ghost"
               onClick={() =>
-                navigator.clipboard.writeText(exportVideo.data?.video_url ?? "")
+                navigator.clipboard.writeText(
+                  exportVideo.data?.supabaseUrl ?? "",
+                )
               }
               disabled={exportVideo.data === undefined}
             >
@@ -184,7 +224,7 @@ export function ExportDialog({ onOpenChange, ...props }: ExportDialogProps) {
             aria-disabled={actionsDisabled || !exportVideo.data}
             asChild
           >
-            <a href={exportVideo.data?.video_url ?? "#"} download>
+            <a href={exportVideo.data?.supabaseUrl ?? "#"} download>
               <DownloadIcon className="w-4 h-4" />
               Download
             </a>

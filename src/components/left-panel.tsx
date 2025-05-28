@@ -33,8 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { useState } from "react";
-import { useUploadThing } from "@/lib/uploadthing";
-import type { ClientUploadedFileData } from "uploadthing/types";
+import { useSupabaseUpload, type UploadedFile } from "@/lib/supabase";
 import { db } from "@/data/db";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
@@ -59,14 +58,16 @@ export default function LeftPanel() {
   );
   const openGenerateDialog = useVideoProjectStore((s) => s.openGenerateDialog);
 
-  const { startUpload, isUploading } = useUploadThing("fileUploader");
+  const { uploadFiles } = useSupabaseUpload();
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
+    setIsUploading(true);
     try {
-      const uploadedFiles = await startUpload(Array.from(files));
+      const uploadedFiles = await uploadFiles(Array.from(files));
       if (uploadedFiles) {
         await handleUploadComplete(uploadedFiles);
       }
@@ -76,14 +77,12 @@ export default function LeftPanel() {
         title: "Failed to upload file",
         description: "Please try again",
       });
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const handleUploadComplete = async (
-    files: ClientUploadedFileData<{
-      uploadedBy: string;
-    }>[],
-  ) => {
+  const handleUploadComplete = async (files: UploadedFile[]) => {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const mediaType = file.type.split("/")[0];

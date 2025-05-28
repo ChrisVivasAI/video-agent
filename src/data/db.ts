@@ -75,6 +75,10 @@ export const db = {
         ...track,
       });
     },
+    async delete(id: string) {
+      const db = await open();
+      return db.delete("tracks", id);
+    },
   },
 
   keyFrames: {

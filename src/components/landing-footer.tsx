@@ -9,12 +9,12 @@ export default function Footer() {
           <div className="flex flex-col items-start">
             <div className="flex items-center space-x-2 mb-4">
               <Video className="w-6 h-6" />
-              <span className="font-semibold">fal.ai</span>
+              <span className="font-semibold">Chris Vivas AI</span>
             </div>
             <p className="text-sm text-gray-400">
-              Open-source AI video developer
+              AI Content Generation Suite
               <br />
-              starter kit.
+              for Entrepreneurs and Content Creators.
             </p>
           </div>
 
@@ -29,47 +29,33 @@ export default function Footer() {
                   AI Models
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="https://docs.fal.ai"
-                  className="hover:text-white transition-colors"
-                >
-                  API Reference
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="https://blog.fal.ai"
-                  className="hover:text-white transition-colors"
-                >
-                  fal Blog
-                </Link>
-              </li>
             </ul>
           </div>
 
           <div className="flex flex-col items-center text-center">
-            <h4 className="font-semibold mb-4">Community</h4>
+            <h4 className="font-semibold mb-4">Find Me</h4>
             <ul className="space-y-2 text-sm text-gray-400">
               <li>
                 <Link
-                  href="https://github.com/fal-ai-community/video-starter-kit"
+                  href="https://www.linkedin.com/in/christian-vivas-468371165/"
+                  target="_blank"
                   className="hover:text-white transition-colors"
                 >
-                  GitHub
+                  LinkedIn
                 </Link>
               </li>
               <li>
                 <Link
-                  href="https://discord.gg/fal-ai"
+                  href="https://www.instagram.com/chrisvivas.ai/"
+                  target="_blank"
                   className="hover:text-white transition-colors"
                 >
-                  Discord
+                  Instagram
                 </Link>
               </li>
               <li>
                 <Link
-                  href="https://x.com/fal"
+                  href="https://x.com/chrisvivasai"
                   target="_blank"
                   className="hover:text-white transition-colors"
                 >

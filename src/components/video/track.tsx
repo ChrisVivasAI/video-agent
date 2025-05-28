@@ -19,6 +19,7 @@ import {
   createElement,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { WithTooltip } from "../ui/tooltip";
 import { useProjectId, useVideoProjectStore } from "@/data/store";
@@ -26,9 +27,29 @@ import { fal } from "@/lib/fal";
 
 type VideoTrackRowProps = {
   data: VideoTrack;
+  timelineState?: {
+    selectedClips: Set<string>;
+    activeTool: string;
+  };
+  onClipSelect?: (clipId: string, multiSelect: boolean) => void;
+  onClipCut?: (clipId: string, position: number) => void;
+  onClipDrag?: (clipId: string, deltaX: number) => void;
+  onClipResize?: (
+    clipId: string,
+    handle: "left" | "right",
+    deltaX: number,
+  ) => void;
 } & HTMLAttributes<HTMLDivElement>;
 
-export function VideoTrackRow({ data, ...props }: VideoTrackRowProps) {
+export function VideoTrackRow({
+  data,
+  timelineState,
+  onClipSelect,
+  onClipCut,
+  onClipDrag,
+  onClipResize,
+  ...props
+}: VideoTrackRowProps) {
   const { data: keyframes = [] } = useQuery({
     queryKey: ["frames", data],
     queryFn: () => db.keyFrames.keyFramesByTrack(data.id),
@@ -58,6 +79,11 @@ export function VideoTrackRow({ data, ...props }: VideoTrackRowProps) {
           }}
           track={data}
           frame={frame}
+          timelineState={timelineState}
+          onClipSelect={onClipSelect}
+          onClipCut={onClipCut}
+          onClipDrag={onClipDrag}
+          onClipResize={onClipResize}
         />
       ))}
     </div>
@@ -139,12 +165,29 @@ function AudioWaveform({ data }: AudioWaveformProps) {
 type VideoTrackViewProps = {
   track: VideoTrack;
   frame: VideoKeyFrame;
+  timelineState?: {
+    selectedClips: Set<string>;
+    activeTool: string;
+  };
+  onClipSelect?: (clipId: string, multiSelect: boolean) => void;
+  onClipCut?: (clipId: string, position: number) => void;
+  onClipDrag?: (clipId: string, deltaX: number) => void;
+  onClipResize?: (
+    clipId: string,
+    handle: "left" | "right",
+    deltaX: number,
+  ) => void;
 } & HTMLAttributes<HTMLDivElement>;
 
 export function VideoTrackView({
   className,
   track,
   frame,
+  timelineState,
+  onClipSelect,
+  onClipCut,
+  onClipDrag,
+  onClipResize,
   ...props
 }: VideoTrackViewProps) {
   const queryClient = useQueryClient();
@@ -152,19 +195,38 @@ export function VideoTrackView({
     mutationFn: () => db.keyFrames.delete(frame.id),
     onSuccess: () => refreshVideoCache(queryClient, track.projectId),
   });
-  const handleOnDelete = () => {
+  const handleOnDelete = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     deleteKeyframe.mutate();
   };
 
-  const isSelected = useVideoProjectStore((state) =>
-    state.selectedKeyframes.includes(frame.id),
+  const selectedKeyframes = useVideoProjectStore(
+    (state) => state.selectedKeyframes ?? [],
   );
   const selectKeyframe = useVideoProjectStore((state) => state.selectKeyframe);
+
+  const isSelected =
+    timelineState?.selectedClips.has(frame.id) ||
+    selectedKeyframes.includes(frame.id);
+
+  const [isHovered, setIsHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
   const handleOnClick: MouseEventHandler = (e) => {
     if (e.detail > 1) {
       return;
     }
-    selectKeyframe(frame.id);
+
+    const isMultiSelect = e.ctrlKey || e.metaKey;
+
+    if (timelineState && onClipSelect) {
+      onClipSelect(frame.id, isMultiSelect);
+    } else if (selectKeyframe) {
+      selectKeyframe(frame.id);
+    }
   };
 
   const projectId = useProjectId();
@@ -268,39 +330,80 @@ export function VideoTrackView({
     e.stopPropagation();
     const trackElement = trackRef.current;
     if (!trackElement) return;
+
+    setIsDragging(true);
     const startX = e.clientX;
     const startWidth = trackElement.offsetWidth;
+    const startLeft = trackElement.offsetLeft;
+    const startTimestamp = frame.timestamp;
+    const startDuration = frame.duration;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaX = moveEvent.clientX - startX;
-      let newWidth = startWidth + (direction === "right" ? deltaX : -deltaX);
 
-      const minDuration = 1000;
-      const mediaDuration = resolveDuration(media) ?? 5000;
-      const maxDuration = Math.min(mediaDuration, 30000);
+      if (direction === "right") {
+        // Right handle: adjust duration only
+        let newWidth = startWidth + deltaX;
+        const minDuration = 1000;
+        const mediaDuration = resolveDuration(media) ?? 5000;
+        const maxDuration = Math.min(mediaDuration, 30000);
 
-      const timelineElement = trackElement.closest(".timeline-container");
-      const parentWidth = timelineElement
-        ? (timelineElement as HTMLElement).offsetWidth
-        : 1;
-      let newDuration = (newWidth / parentWidth) * 30 * 1000;
+        const timelineElement = trackElement.closest(".timeline-container");
+        const parentWidth = timelineElement
+          ? (timelineElement as HTMLElement).offsetWidth
+          : 1;
+        let newDuration = (newWidth / parentWidth) * 30 * 1000;
 
-      if (newDuration < minDuration) {
-        newWidth = (minDuration / 1000 / 30) * parentWidth;
-        newDuration = minDuration;
-      } else if (newDuration > maxDuration) {
-        newWidth = (maxDuration / 1000 / 30) * parentWidth;
-        newDuration = maxDuration;
+        if (newDuration < minDuration) {
+          newWidth = (minDuration / 1000 / 30) * parentWidth;
+          newDuration = minDuration;
+        } else if (newDuration > maxDuration) {
+          newWidth = (maxDuration / 1000 / 30) * parentWidth;
+          newDuration = maxDuration;
+        }
+
+        frame.duration = newDuration;
+        trackElement.style.width = `${((frame.duration / 30) * 100) / 1000}%`;
+      } else {
+        // Left handle: adjust timestamp and duration (trim in-point)
+        let newLeft = startLeft + deltaX;
+        const timelineElement = trackElement.closest(".timeline-container");
+        const parentWidth = timelineElement
+          ? (timelineElement as HTMLElement).offsetWidth
+          : 1;
+
+        // Calculate new timestamp
+        const newTimestamp = Math.max(0, (newLeft / parentWidth) * 30 * 1000);
+        const timestampDelta = newTimestamp - startTimestamp;
+
+        // Adjust duration to maintain end point
+        const newDuration = Math.max(1000, startDuration - timestampDelta);
+
+        frame.timestamp = newTimestamp;
+        frame.duration = newDuration;
+
+        trackElement.style.left = `${((frame.timestamp / 30) * 100) / 1000}%`;
+        trackElement.style.width = `${((frame.duration / 30) * 100) / 1000}%`;
       }
 
-      frame.duration = newDuration;
-      trackElement.style.width = `${((frame.duration / 30) * 100) / 1000}%`;
+      // Call custom resize handler if provided
+      if (onClipResize) {
+        onClipResize(frame.id, direction, deltaX);
+      }
     };
 
     const handleMouseUp = () => {
+      setIsDragging(false);
       frame.duration = Math.round(frame.duration / 100) * 100;
+      frame.timestamp = Math.round(frame.timestamp / 100) * 100;
+
+      trackElement.style.left = `${((frame.timestamp / 30) * 100) / 1000}%`;
       trackElement.style.width = `${((frame.duration / 30) * 100) / 1000}%`;
-      db.keyFrames.update(frame.id, { duration: frame.duration });
+
+      db.keyFrames.update(frame.id, {
+        duration: frame.duration,
+        timestamp: frame.timestamp,
+      });
       queryClient.invalidateQueries({
         queryKey: queryKeys.projectPreview(projectId),
       });
@@ -312,22 +415,58 @@ export function VideoTrackView({
     document.addEventListener("mouseup", handleMouseUp);
   };
 
+  const handleRazorClick = (e: React.MouseEvent) => {
+    if (timelineState?.activeTool === "razor") {
+      e.stopPropagation();
+      const rect = trackRef.current?.getBoundingClientRect();
+      if (rect) {
+        const relativeX = e.clientX - rect.left;
+        const position =
+          (relativeX / rect.width) * frame.duration + frame.timestamp;
+        if (onClipCut) {
+          onClipCut(frame.id, position);
+        }
+      }
+    }
+  };
+
   return (
     <div
       ref={trackRef}
-      onMouseDown={handleMouseDown}
+      onMouseDown={
+        timelineState?.activeTool === "select" ? handleMouseDown : undefined
+      }
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onContextMenu={(e) => e.preventDefault()}
+      onClick={
+        timelineState?.activeTool === "razor" ? handleRazorClick : handleOnClick
+      }
       aria-checked={isSelected}
-      onClick={handleOnClick}
       className={cn(
-        "flex flex-col border border-white/10 rounded-lg",
+        "flex flex-col border rounded-lg transition-all duration-150 cursor-pointer",
+        {
+          // Selection state
+          "border-blue-400 ring-2 ring-blue-400/50": isSelected,
+          "border-white/10": !isSelected,
+
+          // Hover state
+          "border-white/30": isHovered && !isSelected,
+
+          // Tool-specific cursors
+          "cursor-crosshair": timelineState?.activeTool === "razor",
+          "cursor-move": timelineState?.activeTool === "select",
+
+          // Dragging state
+          "opacity-80 scale-[1.01] shadow-lg": isDragging,
+        },
         className,
       )}
       {...props}
     >
       <div
         className={cn(
-          "flex flex-col select-none rounded overflow-hidden group h-full",
+          "flex flex-col select-none rounded overflow-hidden group h-full relative",
           {
             "bg-sky-600": track.type === "video",
             "bg-teal-500": track.type === "music",
@@ -351,10 +490,13 @@ export function VideoTrackView({
               <WithTooltip tooltip="Remove content">
                 <button
                   type="button"
-                  className="p-1 rounded hover:bg-black/5 group-hover:text-white"
-                  onClick={handleOnDelete}
+                  className="p-1 rounded hover:bg-red-500/20 group-hover:text-white transition-colors relative z-10 focus:outline-none focus:ring-2 focus:ring-red-400"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOnDelete(e);
+                  }}
                 >
-                  <TrashIcon className="w-3 h-3 text-white" />
+                  <TrashIcon className="w-3 h-3 text-white hover:text-red-400" />
                 </button>
               </WithTooltip>
             </div>
@@ -374,11 +516,32 @@ export function VideoTrackView({
           {(media.mediaType === "music" || media.mediaType === "voiceover") && (
             <AudioWaveform data={media} />
           )}
+
+          {/* Left resize handle (trim in-point) */}
+          <div
+            className={cn(
+              "absolute left-0 z-50 top-0 bg-black/20 group-hover:bg-black/40",
+              "rounded-md bottom-0 w-2 m-1 p-px cursor-w-resize backdrop-blur-md text-white/40",
+              "transition-all duration-150 flex flex-col items-center justify-center text-xs tracking-tighter",
+              "opacity-0 group-hover:opacity-100",
+              {
+                "opacity-100": isHovered || isDragging,
+              },
+            )}
+            onMouseDown={(e) => handleResize(e, "left")}
+          >
+            <span className="flex gap-[1px]">
+              <span className="w-px h-2 rounded bg-white/40" />
+              <span className="w-px h-2 rounded bg-white/40" />
+            </span>
+          </div>
+
+          {/* Right resize handle (trim out-point) */}
           <div
             className={cn(
               "absolute right-0 z-50 top-0 bg-black/20 group-hover:bg-black/40",
-              "rounded-md bottom-0 w-2 m-1 p-px cursor-ew-resize backdrop-blur-md text-white/40",
-              "transition-colors flex flex-col items-center justify-center text-xs tracking-tighter",
+              "rounded-md bottom-0 w-2 m-1 p-px cursor-e-resize backdrop-blur-md text-white/40",
+              "transition-all duration-150 flex flex-col items-center justify-center text-xs tracking-tighter",
             )}
             onMouseDown={(e) => handleResize(e, "right")}
           >

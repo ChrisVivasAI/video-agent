@@ -28,8 +28,7 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
 import { useEffect, useMemo, useState } from "react";
-import { useUploadThing } from "@/lib/uploadthing";
-import type { ClientUploadedFileData } from "uploadthing/types";
+import { useSupabaseUpload, type UploadedFile } from "@/lib/supabase";
 import { db } from "@/data/db";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -313,14 +312,16 @@ export default function RightPanel({
     setTab("generation");
   };
 
-  const { startUpload, isUploading } = useUploadThing("fileUploader");
+  const { uploadFiles } = useSupabaseUpload();
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
+    setIsUploading(true);
     try {
-      const uploadedFiles = await startUpload(Array.from(files));
+      const uploadedFiles = await uploadFiles(Array.from(files));
       if (uploadedFiles) {
         await handleUploadComplete(uploadedFiles);
       }
@@ -330,14 +331,12 @@ export default function RightPanel({
         title: "Failed to upload file",
         description: "Please try again",
       });
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const handleUploadComplete = async (
-    files: ClientUploadedFileData<{
-      uploadedBy: string;
-    }>[],
-  ) => {
+  const handleUploadComplete = async (files: UploadedFile[]) => {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const mediaType = file.type.split("/")[0];

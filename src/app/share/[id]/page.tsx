@@ -1,6 +1,6 @@
 import Header from "@/components/header";
 import { Button } from "@/components/ui/button";
-import { fetchSharedVideo } from "@/lib/share";
+import { fetchSharedVideo } from "@/lib/supabase";
 import { DownloadIcon } from "lucide-react";
 import type { Metadata, ResolvingMetadata } from "next";
 import { notFound } from "next/navigation";
