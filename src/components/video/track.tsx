@@ -346,7 +346,7 @@ export function VideoTrackView({
         let newWidth = startWidth + deltaX;
         const minDuration = 1000;
         const mediaDuration = resolveDuration(media) ?? 5000;
-        const maxDuration = Math.min(mediaDuration, 30000);
+        const maxDuration = mediaDuration;
 
         const timelineElement = trackElement.closest(".timeline-container");
         const parentWidth = timelineElement

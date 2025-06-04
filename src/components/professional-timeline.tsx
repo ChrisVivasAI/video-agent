@@ -213,7 +213,7 @@ export default function ProfessionalTimeline() {
       }
     });
 
-    return Math.min(Math.max(maxDuration, 5), 30); // Min 5 seconds, max 30 seconds
+    return Math.max(maxDuration, 5);
   }, [allKeyframes]);
 
   // Add new track mutation
@@ -425,7 +425,7 @@ export default function ProfessionalTimeline() {
     await db.keyFrames.create({
       trackId: targetTrack.id,
       timestamp: playerCurrentTimestamp * 1000,
-      duration: Math.min(duration, 30000),
+      duration,
       data: {
         type:
           media.mediaType === "image"

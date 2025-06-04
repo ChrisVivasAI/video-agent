@@ -44,34 +44,6 @@ export default function BottomBar() {
   // Clipboard for copy/paste
   const [clipboard, setClipboard] = useState<any[]>([]);
 
-  const limitAllKeyframesToThirtySeconds = useMutation({
-    mutationFn: async () => {
-      const tracks = await db.tracks.tracksByProject(projectId);
-
-      let updatedCount = 0;
-
-      for (const track of tracks) {
-        const keyframes = await db.keyFrames.keyFramesByTrack(track.id);
-
-        for (const frame of keyframes) {
-          if (frame.duration > 30000) {
-            await db.keyFrames.update(frame.id, {
-              duration: 30000,
-            });
-            updatedCount++;
-          }
-        }
-      }
-
-      return updatedCount;
-    },
-    onSuccess: (updatedCount) => {
-      if (updatedCount > 0) {
-        refreshVideoCache(queryClient, projectId);
-      }
-    },
-  });
-
   const { data: tracks = [] } = useQuery({
     queryKey: queryKeys.projectTracks(projectId),
     queryFn: () => db.tracks.tracksByProject(projectId),
@@ -126,7 +98,7 @@ export default function BottomBar() {
       }
     });
 
-    return Math.min(Math.max(maxDuration, 5), 30); // Min 5 seconds, max 30 seconds
+    return Math.max(maxDuration, 5);
   }, [allKeyframes]);
 
   // Timeline handlers
@@ -413,7 +385,7 @@ export default function BottomBar() {
     await db.keyFrames.create({
       trackId: track.id,
       timestamp: playerCurrentTimestamp * 1000,
-      duration: Math.min(duration, 30000),
+      duration,
       data: {
         type:
           media.mediaType === "image"
@@ -476,16 +448,6 @@ export default function BottomBar() {
           <span className="text-xs text-muted-foreground">
             {formattedTimestamp}s
           </span>
-          <button
-            type="button"
-            className="text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => limitAllKeyframesToThirtySeconds.mutate()}
-            disabled={limitAllKeyframesToThirtySeconds.isPending}
-          >
-            {limitAllKeyframesToThirtySeconds.isPending
-              ? "Limiting..."
-              : "Limit to 30s"}
-          </button>
         </div>
       </div>
 
