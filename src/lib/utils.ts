@@ -89,20 +89,26 @@ export function resolveMediaUrl(item: MediaItem | undefined): string | null {
     Array.isArray(data.images) &&
     data.images.length > 0
   ) {
-    return data.images[0].url;
+    const first = data.images[0];
+    return typeof first === "string" ? first : first.url;
   }
   const fileProperties = {
     image: 1,
     video: 1,
+    video_url: 1,
     audio: 1,
     audio_file: 1,
     audio_url: 1,
   };
-  const property = Object.keys(data).find(
-    (key) => key in fileProperties && "url" in data[key],
-  );
+  const property = Object.keys(data).find((key) => key in fileProperties);
   if (property) {
-    return data[property].url;
+    const value = data[property];
+    if (typeof value === "string") {
+      return value;
+    }
+    if (value && typeof value === "object" && "url" in value) {
+      return value.url as string;
+    }
   }
   return null;
 }
