@@ -50,7 +50,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
   {
     endpointId: "fal-ai/imagen4/preview",
     label: "Google Imagen 4",
-    description: "Generate a images from a text prompt",
+    description: "Generate images from a text prompt",
     cost: "",
     category: "image",
   },
