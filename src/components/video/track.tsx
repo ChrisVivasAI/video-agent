@@ -86,6 +86,7 @@ export function VideoTrackRow({
           onClipCut={onClipCut}
           onClipDrag={onClipDrag}
           onClipResize={onClipResize}
+          totalDuration={totalDuration}
         />
       ))}
     </div>
@@ -179,6 +180,7 @@ type VideoTrackViewProps = {
     handle: "left" | "right",
     deltaX: number,
   ) => void;
+  totalDuration: number;
 } & HTMLAttributes<HTMLDivElement>;
 
 export function VideoTrackView({
@@ -190,6 +192,7 @@ export function VideoTrackView({
   onClipCut,
   onClipDrag,
   onClipResize,
+  totalDuration,
   ...props
 }: VideoTrackViewProps) {
   const queryClient = useQueryClient();
