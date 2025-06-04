@@ -59,6 +59,18 @@ export function useProfessionalShortcuts(handlers: ProfessionalShortcutsProps) {
       const { key, ctrlKey, metaKey, shiftKey, altKey } = event;
       const isCmd = ctrlKey || metaKey;
 
+      // Ignore shortcuts when a form element or contenteditable element is active
+      const active = document.activeElement as HTMLElement | null;
+      if (
+        active &&
+        (active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          active.tagName === "SELECT" ||
+          active.isContentEditable)
+      ) {
+        return;
+      }
+
       // Prevent default for handled shortcuts
       const preventDefault = () => {
         event.preventDefault();
