@@ -39,6 +39,7 @@ type VideoTrackRowProps = {
     handle: "left" | "right",
     deltaX: number,
   ) => void;
+  totalDuration: number;
 } & HTMLAttributes<HTMLDivElement>;
 
 export function VideoTrackRow({
@@ -48,6 +49,7 @@ export function VideoTrackRow({
   onClipCut,
   onClipDrag,
   onClipResize,
+  totalDuration,
   ...props
 }: VideoTrackRowProps) {
   const { data: keyframes = [] } = useQuery({
@@ -74,8 +76,8 @@ export function VideoTrackRow({
           key={frame.id}
           className="absolute top-0 bottom-0"
           style={{
-            left: `${(frame.timestamp / 10 / 30).toFixed(2)}%`,
-            width: `${(frame.duration / 10 / 30).toFixed(2)}%`,
+            left: `${((frame.timestamp / 1000) / totalDuration) * 100}%`,
+            width: `${((frame.duration / 1000) / totalDuration) * 100}%`,
           }}
           track={data}
           frame={frame}
@@ -84,6 +86,7 @@ export function VideoTrackRow({
           onClipCut={onClipCut}
           onClipDrag={onClipDrag}
           onClipResize={onClipResize}
+          totalDuration={totalDuration}
         />
       ))}
     </div>
@@ -177,6 +180,7 @@ type VideoTrackViewProps = {
     handle: "left" | "right",
     deltaX: number,
   ) => void;
+  totalDuration: number;
 } & HTMLAttributes<HTMLDivElement>;
 
 export function VideoTrackView({
@@ -188,6 +192,7 @@ export function VideoTrackView({
   onClipCut,
   onClipDrag,
   onClipResize,
+  totalDuration,
   ...props
 }: VideoTrackViewProps) {
   const queryClient = useQueryClient();
@@ -304,10 +309,10 @@ export function VideoTrackView({
       const parentWidth = timelineElement
         ? (timelineElement as HTMLElement).offsetWidth
         : 1;
-      const newTimestamp = (newLeft / parentWidth) * 30;
+      const newTimestamp = (newLeft / parentWidth) * totalDuration;
       frame.timestamp = (newTimestamp < 0 ? 0 : newTimestamp) * 1000;
 
-      trackElement.style.left = `${((frame.timestamp / 30) * 100) / 1000}%`;
+      trackElement.style.left = `${((frame.timestamp / 1000) / totalDuration) * 100}%`;
       db.keyFrames.update(frame.id, { timestamp: frame.timestamp });
     };
 
@@ -352,18 +357,18 @@ export function VideoTrackView({
         const parentWidth = timelineElement
           ? (timelineElement as HTMLElement).offsetWidth
           : 1;
-        let newDuration = (newWidth / parentWidth) * 30 * 1000;
+        let newDuration = (newWidth / parentWidth) * totalDuration * 1000;
 
         if (newDuration < minDuration) {
-          newWidth = (minDuration / 1000 / 30) * parentWidth;
+          newWidth = (minDuration / 1000 / totalDuration) * parentWidth;
           newDuration = minDuration;
         } else if (newDuration > maxDuration) {
-          newWidth = (maxDuration / 1000 / 30) * parentWidth;
+          newWidth = (maxDuration / 1000 / totalDuration) * parentWidth;
           newDuration = maxDuration;
         }
 
         frame.duration = newDuration;
-        trackElement.style.width = `${((frame.duration / 30) * 100) / 1000}%`;
+        trackElement.style.width = `${((frame.duration / 1000) / totalDuration) * 100}%`;
       } else {
         // Left handle: adjust timestamp and duration (trim in-point)
         let newLeft = startLeft + deltaX;
@@ -373,7 +378,7 @@ export function VideoTrackView({
           : 1;
 
         // Calculate new timestamp
-        const newTimestamp = Math.max(0, (newLeft / parentWidth) * 30 * 1000);
+        const newTimestamp = Math.max(0, (newLeft / parentWidth) * totalDuration * 1000);
         const timestampDelta = newTimestamp - startTimestamp;
 
         // Adjust duration to maintain end point
@@ -382,8 +387,8 @@ export function VideoTrackView({
         frame.timestamp = newTimestamp;
         frame.duration = newDuration;
 
-        trackElement.style.left = `${((frame.timestamp / 30) * 100) / 1000}%`;
-        trackElement.style.width = `${((frame.duration / 30) * 100) / 1000}%`;
+        trackElement.style.left = `${((frame.timestamp / 1000) / totalDuration) * 100}%`;
+        trackElement.style.width = `${((frame.duration / 1000) / totalDuration) * 100}%`;
       }
 
       // Call custom resize handler if provided
@@ -397,8 +402,8 @@ export function VideoTrackView({
       frame.duration = Math.round(frame.duration / 100) * 100;
       frame.timestamp = Math.round(frame.timestamp / 100) * 100;
 
-      trackElement.style.left = `${((frame.timestamp / 30) * 100) / 1000}%`;
-      trackElement.style.width = `${((frame.duration / 30) * 100) / 1000}%`;
+      trackElement.style.left = `${((frame.timestamp / 1000) / totalDuration) * 100}%`;
+      trackElement.style.width = `${((frame.duration / 1000) / totalDuration) * 100}%`;
 
       db.keyFrames.update(frame.id, {
         duration: frame.duration,

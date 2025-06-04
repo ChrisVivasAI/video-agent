@@ -15,12 +15,14 @@ interface EnhancedClipProps {
   frame: VideoKeyFrame;
   track: VideoTrack;
   timelineState: any;
+  totalDuration: number;
 }
 
 export function EnhancedClip({
   frame,
   track,
   timelineState,
+  totalDuration,
 }: EnhancedClipProps) {
   const queryClient = useQueryClient();
   const projectId = useProjectId();
@@ -76,8 +78,8 @@ export function EnhancedClip({
   };
 
   // Calculate clip position and size
-  const clipLeft = (frame.timestamp / 1000 / 30) * 100; // Convert to percentage
-  const clipWidth = (frame.duration / 1000 / 30) * 100; // Convert to percentage
+  const clipLeft = (frame.timestamp / 1000 / totalDuration) * 100; // Convert to percentage
+  const clipWidth = (frame.duration / 1000 / totalDuration) * 100; // Convert to percentage
 
   const coverImage =
     media?.mediaType === "video"

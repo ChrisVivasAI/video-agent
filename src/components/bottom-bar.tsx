@@ -27,7 +27,6 @@ export default function BottomBar() {
   const formattedTimestamp =
     (playerCurrentTimestamp < 10 ? "0" : "") +
     playerCurrentTimestamp.toFixed(2);
-  const minTrackWidth = `${((2 / 30) * 100).toFixed(2)}%`;
   const [dragOverTracks, setDragOverTracks] = useState(false);
 
   // Professional timeline state
@@ -100,6 +99,11 @@ export default function BottomBar() {
 
     return Math.max(maxDuration, 5);
   }, [allKeyframes]);
+
+  const minTrackWidth = useMemo(
+    () => `${((2 / totalDuration) * 100).toFixed(2)}%`,
+    [totalDuration],
+  );
 
   // Timeline handlers
   const handleClipSelect = (clipId: string, multiSelect: boolean) => {
@@ -471,10 +475,10 @@ export default function BottomBar() {
           <div
             className="absolute z-[32] top-6 bottom-0 w-[2px] bg-white/30 ms-4"
             style={{
-              left: `${((playerCurrentTimestamp / 30) * 100).toFixed(2)}%`,
+              left: `${((playerCurrentTimestamp / totalDuration) * 100).toFixed(2)}%`,
             }}
           />
-          <TimelineRuler className="z-30 pointer-events-none" />
+          <TimelineRuler duration={totalDuration} className="z-30 pointer-events-none" />
           <div className="flex timeline-container flex-col h-full mx-4 mt-10 gap-2 z-[31] pb-2">
             {Object.values(trackObj).map((track, index) =>
               track ? (
@@ -489,6 +493,7 @@ export default function BottomBar() {
                   onClipCut={handleClipCut}
                   onClipDrag={handleClipDrag}
                   onClipResize={handleClipResize}
+                  totalDuration={totalDuration}
                   style={{
                     minWidth: minTrackWidth,
                   }}

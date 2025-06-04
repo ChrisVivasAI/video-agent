@@ -54,7 +54,6 @@ export default function EnhancedTimeline() {
   const formattedTimestamp =
     (playerCurrentTimestamp < 10 ? "0" : "") +
     playerCurrentTimestamp.toFixed(2);
-  const minTrackWidth = `${((2 / 30) * 100).toFixed(2)}%`;
   const [dragOverTracks, setDragOverTracks] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     new Set(),
@@ -137,6 +136,11 @@ export default function EnhancedTimeline() {
 
     return Math.max(maxDuration, 5);
   }, [allKeyframes]);
+
+  const minTrackWidth = useMemo(
+    () => `${((2 / totalDuration) * 100).toFixed(2)}%`,
+    [totalDuration],
+  );
 
   // Add new track mutation
   const addTrackMutation = useMutation({
@@ -341,12 +345,15 @@ export default function EnhancedTimeline() {
           <div
             className="absolute z-[32] top-0 bottom-0 w-[2px] bg-red-500 pointer-events-none"
             style={{
-              left: `${((playerCurrentTimestamp / 30) * 100).toFixed(2)}%`,
+              left: `${((playerCurrentTimestamp / totalDuration) * 100).toFixed(2)}%`,
             }}
           />
 
           {/* Timeline Ruler */}
-          <TimelineRuler className="z-30 pointer-events-none h-8 border-b border-border" />
+          <TimelineRuler
+            duration={totalDuration}
+            className="z-30 pointer-events-none h-8 border-b border-border"
+          />
 
           {/* Track Rows */}
           <div className="flex flex-col">
@@ -363,6 +370,7 @@ export default function EnhancedTimeline() {
                       track={track}
                       timelineState={timelineState}
                       minTrackWidth={minTrackWidth}
+                      totalDuration={totalDuration}
                     />
                   ))}
               </div>
