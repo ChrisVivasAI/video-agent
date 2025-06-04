@@ -44,11 +44,12 @@ const CameraMovement = ({
     if (type === "movement") {
       setMovement(val as string);
       setValue(0);
-      if (movement === "default") {
+      if (val === "default") {
         setValue(0);
         onChange(undefined);
+        return;
       }
-      onChange({ movement: val as string, value: value });
+      onChange({ movement: val as string, value: 0 });
     } else {
       setValue(val as number);
       onChange({ movement: movement, value: val as number });
