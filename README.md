@@ -39,7 +39,7 @@ This isn't just another AI video tool - it's a complete content creation ecosyst
 - **[Remotion](https://remotion.dev)** - Programmatic video creation and processing
 - **[IndexedDB](https://developer.mozilla.org/docs/Web/API/IndexedDB_API)** - Client-side storage (no cloud dependencies)
 - **[Vercel](https://vercel.com)** - Edge deployment and optimization
-- **[UploadThing](https://uploadthing.com)** - Secure file handling and storage
+- **[Supabase](https://supabase.com)** - Media storage and file uploads
 
 ## 🎯 Perfect For
 
@@ -76,8 +76,8 @@ cp .env.example .env.local
 
 Add your API keys:
 - `FAL_KEY`: Your fal.ai API key
-- `UPLOADTHING_SECRET`: Your UploadThing secret key
-- `UPLOADTHING_APP_ID`: Your UploadThing app ID
+- `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
 
 4. **Start the development server:**
 
