@@ -66,6 +66,22 @@ export type KeyFrameData = {
     }
 );
 
+export interface MediaMetadata {
+  /** Duration of the media in seconds */
+  duration?: number;
+  /** Audio waveform samples */
+  waveform?: number[];
+  /** Width of the media in pixels */
+  width?: number;
+  /** Height of the media in pixels */
+  height?: number;
+  /** URL for the first frame of a video */
+  start_frame_url?: string;
+  /** URL for the last frame of a video */
+  end_frame_url?: string;
+  [key: string]: unknown;
+}
+
 export type MediaItem = {
   id: string;
   kind: "generated" | "uploaded";
@@ -78,7 +94,7 @@ export type MediaItem = {
   input?: Record<string, any>;
   output?: Record<string, any>;
   url?: string;
-  metadata?: Record<string, any>; // TODO: Define the metadata schema
+  metadata?: MediaMetadata;
 } & (
   | {
       kind: "generated";
