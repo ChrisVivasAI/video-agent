@@ -213,7 +213,7 @@ export default function ProfessionalTimeline() {
       }
     });
 
-    return Math.min(Math.max(maxDuration, 5), 30); // Min 5 seconds, max 30 seconds
+    return Math.max(maxDuration, 5);
   }, [allKeyframes]);
 
   // Add new track mutation
@@ -703,7 +703,10 @@ export default function ProfessionalTimeline() {
 
           {/* Timeline Ruler */}
           <div className="h-8 border-b border-border bg-muted/50 relative">
-            <TimelineRuler className="z-30 pointer-events-none h-full" />
+            <TimelineRuler
+              duration={totalDuration}
+              className="z-30 pointer-events-none h-full"
+            />
           </div>
 
           {/* Track Rows */}

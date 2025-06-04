@@ -10,12 +10,14 @@ interface EnhancedTrackRowProps {
   track: VideoTrack;
   timelineState: any;
   minTrackWidth: string;
+  totalDuration: number;
 }
 
 export function EnhancedTrackRow({
   track,
   timelineState,
   minTrackWidth,
+  totalDuration,
 }: EnhancedTrackRowProps) {
   const queryClient = useQueryClient();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -52,7 +54,7 @@ export function EnhancedTrackRow({
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const timelineWidth = rect.width;
-      const timestamp = (x / timelineWidth) * 30 * 1000; // 30 seconds max
+      const timestamp = (x / timelineWidth) * totalDuration * 1000;
 
       // Create keyframe at drop position
       await db.keyFrames.create({
@@ -96,11 +98,11 @@ export function EnhancedTrackRow({
     >
       {/* Track Background Grid */}
       <div className="absolute inset-0 opacity-10">
-        {Array.from({ length: 30 }).map((_, i) => (
+        {Array.from({ length: Math.ceil(totalDuration) }).map((_, i) => (
           <div
             key={i}
             className="absolute top-0 bottom-0 w-px bg-border"
-            style={{ left: `${(i / 30) * 100}%` }}
+            style={{ left: `${(i / Math.ceil(totalDuration)) * 100}%` }}
           />
         ))}
       </div>
@@ -112,6 +114,7 @@ export function EnhancedTrackRow({
           frame={frame}
           track={track}
           timelineState={timelineState}
+          totalDuration={totalDuration}
         />
       ))}
 
