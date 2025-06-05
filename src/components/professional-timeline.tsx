@@ -286,6 +286,7 @@ export default function ProfessionalTimeline() {
     player?.seekTo(totalDuration * 30);
   }, [totalDuration, setPlayerCurrentTimestamp, player]);
 
+  // History actions
   const handleUndo = () => {
     timelineState.undo();
   };
