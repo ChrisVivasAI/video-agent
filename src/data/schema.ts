@@ -28,6 +28,9 @@ export type VideoTrack = {
   label: string;
   type: VideoTrackType;
   projectId: string;
+  muted: boolean;
+  solo: boolean;
+  volume: number;
 };
 
 export const MAIN_VIDEO_TRACK: VideoTrack = {
@@ -36,6 +39,9 @@ export const MAIN_VIDEO_TRACK: VideoTrack = {
   label: "Main",
   type: "video",
   projectId: PROJECT_PLACEHOLDER.id,
+  muted: false,
+  solo: false,
+  volume: 100,
 };
 
 export type VideoKeyFrame = {

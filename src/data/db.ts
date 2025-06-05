@@ -72,7 +72,20 @@ export const db = {
       const db = await open();
       return db.put("tracks", {
         id: crypto.randomUUID(),
+        muted: false,
+        solo: false,
+        volume: 100,
         ...track,
+      });
+    },
+    async update(id: string, track: Partial<VideoTrack>) {
+      const db = await open();
+      const existing = await db.get("tracks", id);
+      if (!existing) return;
+      return db.put("tracks", {
+        ...existing,
+        ...track,
+        id,
       });
     },
     async delete(id: string) {

@@ -91,26 +91,33 @@ const MainComposition: React.FC<VideoCompositionProps> = ({
   frames,
   mediaItems,
 }) => {
+  const soloActive = tracks.some((t) => t.solo);
   return (
     <AbsoluteFill>
-      {tracks.map((track) => (
-        <Sequence key={track.id}>
-          {track.type === "video" && (
-            <VideoTrackSequence
-              track={track}
-              frames={frames[track.id] || []}
-              mediaItems={mediaItems}
-            />
-          )}
-          {(track.type === "music" || track.type === "voiceover") && (
-            <AudioTrackSequence
-              track={track}
-              frames={frames[track.id] || []}
-              mediaItems={mediaItems}
-            />
-          )}
-        </Sequence>
-      ))}
+      {tracks.map((track) => {
+        const muted = track.muted || (soloActive && !track.solo);
+        const volume = muted ? 0 : (track.volume ?? 100) / 100;
+        return (
+          <Sequence key={track.id}>
+            {track.type === "video" && (
+              <VideoTrackSequence
+                track={track}
+                frames={frames[track.id] || []}
+                mediaItems={mediaItems}
+                volume={volume}
+              />
+            )}
+            {(track.type === "music" || track.type === "voiceover") && (
+              <AudioTrackSequence
+                track={track}
+                frames={frames[track.id] || []}
+                mediaItems={mediaItems}
+                volume={volume}
+              />
+            )}
+          </Sequence>
+        );
+      })}
     </AbsoluteFill>
   );
 };
@@ -119,11 +126,13 @@ interface TrackSequenceProps {
   track: VideoTrack;
   frames: VideoKeyFrame[];
   mediaItems: Record<string, MediaItem>;
+  volume: number;
 }
 
 const VideoTrackSequence: React.FC<TrackSequenceProps> = ({
   frames,
   mediaItems,
+  volume,
 }) => {
   return (
     <AbsoluteFill>
@@ -144,7 +153,9 @@ const VideoTrackSequence: React.FC<TrackSequenceProps> = ({
             durationInFrames={durationInFrames}
             premountFor={3000}
           >
-            {media.mediaType === "video" && <Video src={mediaUrl} />}
+            {media.mediaType === "video" && (
+              <Video src={mediaUrl} volume={volume} />
+            )}
             {media.mediaType === "image" && (
               <Img src={mediaUrl} style={{ objectFit: "cover" }} />
             )}
@@ -158,6 +169,7 @@ const VideoTrackSequence: React.FC<TrackSequenceProps> = ({
 const AudioTrackSequence: React.FC<TrackSequenceProps> = ({
   frames,
   mediaItems,
+  volume,
 }) => {
   return (
     <>
@@ -178,7 +190,7 @@ const AudioTrackSequence: React.FC<TrackSequenceProps> = ({
             durationInFrames={durationInFrames}
             premountFor={3000}
           >
-            <Audio src={audioUrl} />
+            <Audio src={audioUrl} volume={volume} />
           </Sequence>
         );
       })}

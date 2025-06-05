@@ -361,13 +361,16 @@ export default function BottomBar() {
     const trackType = media.mediaType === "image" ? "video" : media.mediaType;
     let track = tracks.find((t) => t.type === trackType);
 
-    if (!track) {
-      const trackId = await db.tracks.create({
-        projectId,
-        type: trackType,
-        label: `${trackType.charAt(0).toUpperCase() + trackType.slice(1)} Track`,
-        locked: false,
-      });
+      if (!track) {
+        const trackId = await db.tracks.create({
+          projectId,
+          type: trackType,
+          label: `${trackType.charAt(0).toUpperCase() + trackType.slice(1)} Track`,
+          locked: false,
+          muted: false,
+          solo: false,
+          volume: 100,
+        });
 
       // Refresh tracks to get the newly created track
       queryClient.invalidateQueries({
