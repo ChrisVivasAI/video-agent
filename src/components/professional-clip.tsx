@@ -113,7 +113,6 @@ export function ProfessionalClip({
       });
     },
   });
-  });
 
   const handleDelete = useCallback(
     (e?: React.MouseEvent) => {
