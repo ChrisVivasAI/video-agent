@@ -457,6 +457,7 @@ export function VideoTrackView({
   return (
     <div
       ref={trackRef}
+      data-clip-id={frame.id}
       onMouseDown={
         timelineState?.activeTool === "select" ? handleMouseDown : undefined
       }

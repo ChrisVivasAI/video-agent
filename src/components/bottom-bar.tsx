@@ -8,7 +8,7 @@ import {
 import { useProjectId, useVideoProjectStore } from "@/data/store";
 import { cn, resolveDuration } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type DragEventHandler, useMemo, useState, useEffect } from "react";
+import { type DragEventHandler, useMemo, useState, useEffect, useRef } from "react";
 import { VideoControls } from "./video-controls";
 import { TimelineRuler } from "./video/timeline";
 import { VideoTrackRow } from "./video/track";
@@ -17,6 +17,7 @@ import { TimelineControls } from "./timeline-controls";
 import { TimelineToolbar } from "./timeline-toolbar";
 import { useTimelineState } from "@/hooks/use-timeline-state";
 import { useTimelineShortcuts } from "@/hooks/use-timeline-shortcuts";
+import { SelectionBox, TimelineOverlay } from "./timeline-feedback";
 
 export default function BottomBar() {
   const queryClient = useQueryClient();
@@ -29,6 +30,7 @@ export default function BottomBar() {
     (playerCurrentTimestamp < 10 ? "0" : "") +
     playerCurrentTimestamp.toFixed(2);
   const [dragOverTracks, setDragOverTracks] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   // Professional timeline state
   const timelineState = useTimelineState();
@@ -39,8 +41,6 @@ export default function BottomBar() {
   const [magneticSnap, setMagneticSnap] = useState(true);
   const [selectedKeyframes, setSelectedKeyframes] = useState<string[]>([]);
 
-  // Clipboard for copy/paste
-  const [clipboard, setClipboard] = useState<any[]>([]);
 
   const { data: tracks = [] } = useQuery({
     queryKey: queryKeys.projectTracks(projectId),
@@ -216,6 +216,13 @@ export default function BottomBar() {
       if (frame) {
         frames.push(frame);
         await db.keyFrames.delete(id);
+        if (timelineState.state.ripple) {
+          await timelineState.rippleMoveFollowingClips(
+            frame.trackId,
+            frame.timestamp + frame.duration,
+            -frame.duration,
+          );
+        }
       }
     }
     timelineState.clearSelection();
@@ -238,42 +245,12 @@ export default function BottomBar() {
   // Clipboard handlers
   const handleCopy = async () => {
     const selectedIds = Array.from(timelineState.state.selectedClips);
-    const keyframes = await Promise.all(
-      selectedIds.map((id) => db.keyFrames.find(id)),
-    );
-    setClipboard(keyframes.filter(Boolean));
+    await timelineState.copySelection(selectedIds);
   };
 
   const handlePaste = async () => {
-    if (clipboard.length === 0) return;
-
-    const currentTime = playerCurrentTimestamp * 1000;
-    const created: VideoKeyFrame[] = [];
-    for (const keyframe of clipboard) {
-      if (keyframe) {
-        const frame = {
-          ...keyframe,
-          id: crypto.randomUUID(),
-          timestamp: currentTime,
-        } as VideoKeyFrame;
-        await db.keyFrames.create(frame);
-        created.push(frame);
-      }
-    }
+    await timelineState.pasteClipboard(playerCurrentTimestamp * 1000);
     refreshVideoCache(queryClient, projectId);
-    if (created.length > 0) {
-      timelineState.recordAction({
-        kind: "keyframe",
-        undo: async () => {
-          for (const f of created) await db.keyFrames.delete(f.id);
-          refreshVideoCache(queryClient, projectId);
-        },
-        redo: async () => {
-          for (const f of created) await db.keyFrames.create(f);
-          refreshVideoCache(queryClient, projectId);
-        },
-      });
-    }
   };
 
   const handleCut = async () => {
@@ -282,36 +259,8 @@ export default function BottomBar() {
   };
 
   const handleDuplicate = async () => {
-    const selectedIds = Array.from(timelineState.state.selectedClips);
-    const created: VideoKeyFrame[] = [];
-    for (const id of selectedIds) {
-      const keyframe = await db.keyFrames.find(id);
-      if (keyframe) {
-        const newFrame = {
-          id: crypto.randomUUID(),
-          timestamp: keyframe.timestamp + keyframe.duration,
-          duration: keyframe.duration,
-          trackId: keyframe.trackId,
-          data: keyframe.data,
-        } as VideoKeyFrame;
-        await db.keyFrames.create(newFrame);
-        created.push(newFrame);
-      }
-    }
+    await timelineState.duplicateSelection();
     refreshVideoCache(queryClient, projectId);
-    if (created.length > 0) {
-      timelineState.recordAction({
-        kind: "keyframe",
-        undo: async () => {
-          for (const f of created) await db.keyFrames.delete(f.id);
-          refreshVideoCache(queryClient, projectId);
-        },
-        redo: async () => {
-          for (const f of created) await db.keyFrames.create(f);
-          refreshVideoCache(queryClient, projectId);
-        },
-      });
-    }
   };
 
   const handleUndo = () => {
@@ -547,7 +496,42 @@ export default function BottomBar() {
           transformOrigin: "left center",
         }}
       >
-        <div className="flex flex-col justify-start w-full h-full relative">
+        <div
+          className="flex flex-col justify-start w-full h-full relative"
+          ref={overlayRef}
+          onMouseDown={(e) => {
+            if (e.shiftKey) {
+              timelineState.startSelectionBox(e.clientX, e.clientY);
+              const move = (me: MouseEvent) => {
+                timelineState.updateSelectionBox(me.clientX, me.clientY);
+              };
+              const up = () => {
+                const box = timelineState.state.selectionBox;
+                if (box && overlayRef.current) {
+                  const elements = overlayRef.current.querySelectorAll('[data-clip-id]');
+                  const left = Math.min(box.startX, box.currentX);
+                  const right = Math.max(box.startX, box.currentX);
+                  const top = Math.min(box.startY, box.currentY);
+                  const bottom = Math.max(box.startY, box.currentY);
+                  const ids: string[] = [];
+                  elements.forEach((el) => {
+                    const rect = (el as HTMLElement).getBoundingClientRect();
+                    if (rect.right > left && rect.left < right && rect.bottom > top && rect.top < bottom) {
+                      const id = (el as HTMLElement).getAttribute('data-clip-id');
+                      if (id) ids.push(id);
+                    }
+                  });
+                  timelineState.selectMultipleClips(ids);
+                }
+                timelineState.endSelectionBox();
+                document.removeEventListener('mousemove', move);
+                document.removeEventListener('mouseup', up);
+              };
+              document.addEventListener('mousemove', move);
+              document.addEventListener('mouseup', up);
+            }
+          }}
+        >
           <div
             className="absolute z-[32] top-6 bottom-0 w-[2px] bg-white/30 ms-4"
             style={{
@@ -582,6 +566,15 @@ export default function BottomBar() {
               ),
             )}
           </div>
+          <TimelineOverlay>
+            <SelectionBox
+              startX={timelineState.state.selectionBox?.startX ?? 0}
+              startY={timelineState.state.selectionBox?.startY ?? 0}
+              currentX={timelineState.state.selectionBox?.currentX ?? 0}
+              currentY={timelineState.state.selectionBox?.currentY ?? 0}
+              visible={Boolean(timelineState.state.selectionBox?.active)}
+            />
+          </TimelineOverlay>
         </div>
       </div>
     </div>
