@@ -1,4 +1,6 @@
 import { useState, useCallback } from "react";
+import { db } from "@/data/db";
+import type { VideoKeyFrame } from "@/data/schema";
 
 export type TimelineTool = "select" | "razor" | "slip" | "slide";
 
@@ -38,6 +40,19 @@ export interface TimelineState {
   } | null;
 }
 
+interface StateHistoryEntry {
+  kind: "state";
+  state: TimelineState;
+}
+
+interface KeyframeHistoryEntry {
+  kind: "keyframe";
+  undo: () => Promise<void> | void;
+  redo: () => Promise<void> | void;
+}
+
+type HistoryEntry = StateHistoryEntry | KeyframeHistoryEntry;
+
 export function useTimelineState() {
   const [state, setState] = useState<TimelineState>({
     activeTool: "select",
@@ -50,14 +65,14 @@ export function useTimelineState() {
     cutPreview: null,
   });
 
-  const [undoStack, setUndoStack] = useState<TimelineState[]>([]);
-  const [redoStack, setRedoStack] = useState<TimelineState[]>([]);
+  const [undoStack, setUndoStack] = useState<HistoryEntry[]>([]);
+  const [redoStack, setRedoStack] = useState<HistoryEntry[]>([]);
 
   const updateState = useCallback(
     (updater: (prev: TimelineState) => TimelineState) => {
       setState((prev) => {
         const newState = updater(prev);
-        setUndoStack((u) => [...u, prev]);
+        setUndoStack((u) => [...u, { kind: "state", state: prev }]);
         setRedoStack([]);
         return newState;
       });
@@ -202,24 +217,43 @@ export function useTimelineState() {
     updateState((prev) => ({ ...prev, magneticSnap: !prev.magneticSnap }));
   }, [updateState]);
 
-  const undo = useCallback(() => {
+  const recordAction = useCallback((entry: KeyframeHistoryEntry) => {
+    setUndoStack((u) => [...u, entry]);
+    setRedoStack([]);
+  }, []);
+
+  const undo = useCallback(async () => {
+    let entry: HistoryEntry | undefined;
     setUndoStack((hist) => {
       if (hist.length === 0) return hist;
-      const previous = hist[hist.length - 1];
-      setRedoStack((r) => [state, ...r]);
-      setState(previous);
+      entry = hist[hist.length - 1];
       return hist.slice(0, -1);
     });
+    if (!entry) return;
+    if (entry.kind === "state") {
+      setRedoStack((r) => [{ kind: "state", state }, ...r]);
+      setState(entry.state);
+    } else {
+      await entry.undo();
+      setRedoStack((r) => [entry as KeyframeHistoryEntry, ...r]);
+    }
   }, [state]);
 
-  const redo = useCallback(() => {
+  const redo = useCallback(async () => {
+    let entry: HistoryEntry | undefined;
     setRedoStack((r) => {
       if (r.length === 0) return r;
-      const next = r[0];
-      setUndoStack((hist) => [...hist, state]);
-      setState(next);
+      entry = r[0];
       return r.slice(1);
     });
+    if (!entry) return;
+    if (entry.kind === "state") {
+      setUndoStack((hist) => [...hist, { kind: "state", state }]);
+      setState(entry.state);
+    } else {
+      await entry.redo();
+      setUndoStack((hist) => [...hist, entry as KeyframeHistoryEntry]);
+    }
   }, [state]);
 
   return {
@@ -243,6 +277,7 @@ export function useTimelineState() {
     // Snap
     toggleSnap,
     toggleMagneticSnap,
+    recordAction,
     undo,
     redo,
     canUndo: undoStack.length > 0,

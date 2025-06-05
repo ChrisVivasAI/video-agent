@@ -61,6 +61,17 @@ export function ProfessionalClip({
     onSuccess: () => {
       setIsDeleting(false);
       refreshVideoCache(queryClient, track.projectId);
+      timelineState.recordAction({
+        kind: "keyframe",
+        undo: async () => {
+          await db.keyFrames.create(frame);
+          refreshVideoCache(queryClient, track.projectId);
+        },
+        redo: async () => {
+          await db.keyFrames.delete(frame.id);
+          refreshVideoCache(queryClient, track.projectId);
+        },
+      });
     },
     onError: (error) => {
       setIsDeleting(false);
@@ -77,14 +88,30 @@ export function ProfessionalClip({
   const duplicateKeyframe = useMutation({
     mutationFn: async () => {
       const newTimestamp = frame.timestamp + frame.duration;
-      return await db.keyFrames.create({
+      const data = {
+        id: crypto.randomUUID(),
         trackId: frame.trackId,
         timestamp: newTimestamp,
         duration: frame.duration,
         data: frame.data,
+      } as VideoKeyFrame;
+      await db.keyFrames.create(data);
+      return data;
+    },
+    onSuccess: (created: VideoKeyFrame) => {
+      refreshVideoCache(queryClient, track.projectId);
+      timelineState.recordAction({
+        kind: "keyframe",
+        undo: async () => {
+          await db.keyFrames.delete(created.id);
+          refreshVideoCache(queryClient, track.projectId);
+        },
+        redo: async () => {
+          await db.keyFrames.create(created);
+          refreshVideoCache(queryClient, track.projectId);
+        },
       });
     },
-    onSuccess: () => refreshVideoCache(queryClient, track.projectId),
   });
 
   const handleDelete = useCallback(
@@ -125,7 +152,7 @@ export function ProfessionalClip({
   }, [isSelected, handleDelete]);
 
   const handleClick = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       e.stopPropagation();
 
       if (activeTool === "razor") {
@@ -138,19 +165,37 @@ export function ProfessionalClip({
         const clickPosition = (x / clipWidth) * frame.duration;
 
         if (clickPosition > 100 && clickPosition < frame.duration - 100) {
-          // Minimum 100ms clips
-          // Create second part
-          db.keyFrames.create({
+          const before = { ...frame };
+          const newFrame = {
+            id: crypto.randomUUID(),
             trackId: frame.trackId,
             timestamp: frame.timestamp + clickPosition,
             duration: frame.duration - clickPosition,
             data: frame.data,
-          });
+          } as VideoKeyFrame;
+          await db.keyFrames.create(newFrame);
 
-          // Update first part
-          updateKeyframe.mutate({
-            duration: clickPosition,
-          });
+          updateKeyframe.mutate(
+            { duration: clickPosition },
+            {
+              onSuccess: () => {
+                refreshVideoCache(queryClient, track.projectId);
+                timelineState.recordAction({
+                  kind: "keyframe",
+                  undo: async () => {
+                    await db.keyFrames.delete(newFrame.id);
+                    await db.keyFrames.update(frame.id, before);
+                    refreshVideoCache(queryClient, track.projectId);
+                  },
+                  redo: async () => {
+                    await db.keyFrames.update(frame.id, { duration: clickPosition });
+                    await db.keyFrames.create(newFrame);
+                    refreshVideoCache(queryClient, track.projectId);
+                  },
+                });
+              },
+            },
+          );
         }
         return;
       }
@@ -245,13 +290,32 @@ export function ProfessionalClip({
             const x = rect.left - timelineRect.left;
             const timelineWidth = timelineRect.width;
             const finalTimestamp = (x / timelineWidth) * totalDuration * 1000;
-
-            updateKeyframe.mutate({
-              timestamp: Math.max(
-                0,
-                Math.min(finalTimestamp, totalDuration * 1000 - frame.duration),
-              ),
-            });
+            const newTimestamp = Math.max(
+              0,
+              Math.min(finalTimestamp, totalDuration * 1000 - frame.duration),
+            );
+            const before = { ...frame };
+            updateKeyframe.mutate(
+              { timestamp: newTimestamp },
+              {
+                onSuccess: () => {
+                  refreshVideoCache(queryClient, track.projectId);
+                  timelineState.recordAction({
+                    kind: "keyframe",
+                    undo: async () => {
+                      await db.keyFrames.update(frame.id, {
+                        timestamp: before.timestamp,
+                      });
+                      refreshVideoCache(queryClient, track.projectId);
+                    },
+                    redo: async () => {
+                      await db.keyFrames.update(frame.id, { timestamp: newTimestamp });
+                      refreshVideoCache(queryClient, track.projectId);
+                    },
+                  });
+                },
+              },
+            );
           }
         }
 
@@ -349,10 +413,34 @@ export function ProfessionalClip({
             const finalDuration =
               (width / timelineWidth) * totalDuration * 1000;
 
-            updateKeyframe.mutate({
-              timestamp: Math.max(0, finalTimestamp),
-              duration: Math.max(100, finalDuration),
-            });
+            const newTimestamp = Math.max(0, finalTimestamp);
+            const newDuration = Math.max(100, finalDuration);
+            const before = { ...frame };
+            updateKeyframe.mutate(
+              { timestamp: newTimestamp, duration: newDuration },
+              {
+                onSuccess: () => {
+                  refreshVideoCache(queryClient, track.projectId);
+                  timelineState.recordAction({
+                    kind: "keyframe",
+                    undo: async () => {
+                      await db.keyFrames.update(frame.id, {
+                        timestamp: before.timestamp,
+                        duration: before.duration,
+                      });
+                      refreshVideoCache(queryClient, track.projectId);
+                    },
+                    redo: async () => {
+                      await db.keyFrames.update(frame.id, {
+                        timestamp: newTimestamp,
+                        duration: newDuration,
+                      });
+                      refreshVideoCache(queryClient, track.projectId);
+                    },
+                  });
+                },
+              },
+            );
           }
         }
 
