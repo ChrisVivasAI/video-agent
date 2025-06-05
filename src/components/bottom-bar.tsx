@@ -53,7 +53,7 @@ export default function BottomBar() {
 
   // Get all keyframes for duration calculation
   const { data: allKeyframes = [] } = useQuery({
-    queryKey: ["all-keyframes", projectId],
+    queryKey: queryKeys.allKeyframes(projectId),
     queryFn: async () => {
       const allFrames: any[] = [];
       for (const track of tracks) {

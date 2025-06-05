@@ -22,6 +22,7 @@ export const queryKeys = {
   ],
   projectTracks: (projectId: string) => ["tracks", projectId],
   projectPreview: (projectId: string) => ["preview", projectId],
+  allKeyframes: (projectId: string) => ["all-keyframes", projectId],
 };
 
 export const refreshVideoCache = async (
@@ -34,6 +35,9 @@ export const refreshVideoCache = async (
     }),
     queryClient.invalidateQueries({
       queryKey: queryKeys.projectPreview(projectId),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.allKeyframes(projectId),
     }),
     queryClient.invalidateQueries({
       queryKey: ["frames"],
