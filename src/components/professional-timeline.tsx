@@ -229,6 +229,9 @@ export default function ProfessionalTimeline() {
         type: trackType as any,
         label: `${trackType.charAt(0).toUpperCase() + trackType.slice(1)} ${trackNumber}`,
         locked: false,
+        muted: false,
+        solo: false,
+        volume: 100,
       });
     },
     onSuccess: () => {
@@ -780,10 +783,17 @@ interface ProfessionalTrackHeaderProps {
 
 function ProfessionalTrackHeader({ track }: ProfessionalTrackHeaderProps) {
   const queryClient = useQueryClient();
-  const [volume, setVolume] = useState(100);
-  const [muted, setMuted] = useState(false);
-  const [solo, setSolo] = useState(false);
+  const [volume, setVolume] = useState(track.volume);
+  const [muted, setMuted] = useState(track.muted);
+  const [solo, setSolo] = useState(track.solo);
   const [locked, setLocked] = useState(track.locked);
+
+  const persist = async (changes: Partial<VideoTrack>) => {
+    await db.tracks.update(track.id, changes);
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.projectTracks(track.projectId),
+    });
+  };
 
   const deleteTrackMutation = useMutation({
     mutationFn: async () => {
@@ -842,7 +852,11 @@ function ProfessionalTrackHeader({ track }: ProfessionalTrackHeaderProps) {
         <Button
           size="sm"
           variant={muted ? "destructive" : "ghost"}
-          onClick={() => setMuted(!muted)}
+          onClick={() => {
+            const val = !muted;
+            setMuted(val);
+            persist({ muted: val });
+          }}
           className="h-5 w-5 p-0"
           title={muted ? "Unmute" : "Mute"}
         >
@@ -856,7 +870,11 @@ function ProfessionalTrackHeader({ track }: ProfessionalTrackHeaderProps) {
         <Button
           size="sm"
           variant={solo ? "default" : "ghost"}
-          onClick={() => setSolo(!solo)}
+          onClick={() => {
+            const val = !solo;
+            setSolo(val);
+            persist({ solo: val });
+          }}
           className="h-5 w-5 p-0 text-[10px] font-bold"
           title={solo ? "Unsolo" : "Solo"}
         >
@@ -866,7 +884,11 @@ function ProfessionalTrackHeader({ track }: ProfessionalTrackHeaderProps) {
         <Button
           size="sm"
           variant={locked ? "secondary" : "ghost"}
-          onClick={() => setLocked(!locked)}
+          onClick={() => {
+            const val = !locked;
+            setLocked(val);
+            persist({ locked: val });
+          }}
           className="h-5 w-5 p-0"
           title={locked ? "Unlock" : "Lock"}
         >
@@ -893,7 +915,11 @@ function ProfessionalTrackHeader({ track }: ProfessionalTrackHeaderProps) {
         <div className="flex-1">
           <Slider
             value={[volume]}
-            onValueChange={(value) => setVolume(value[0])}
+            onValueChange={(value) => {
+              const vol = value[0];
+              setVolume(vol);
+              persist({ volume: vol });
+            }}
             max={100}
             step={1}
             className="w-full h-3"
