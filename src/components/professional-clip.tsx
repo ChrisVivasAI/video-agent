@@ -42,7 +42,7 @@ export function ProfessionalClip({
 }: ProfessionalClipProps) {
   const queryClient = useQueryClient();
   const projectId = useProjectId();
-  const [isSelected, setIsSelected] = useState(false);
+  const isSelected = timelineState.state.selectedClips.has(frame.id);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -201,10 +201,10 @@ export function ProfessionalClip({
       }
 
       if (activeTool === "select") {
-        setIsSelected(!isSelected);
+        timelineState.selectClip(frame.id, e.ctrlKey || e.metaKey);
       }
     },
-    [activeTool, frame, updateKeyframe],
+    [activeTool, frame, updateKeyframe, timelineState],
   );
 
   const handleMouseDown = useCallback(
@@ -466,6 +466,7 @@ export function ProfessionalClip({
   return (
     <div
       ref={clipRef}
+      data-clip-id={frame.id}
       className={cn(
         "absolute top-1 bottom-1 rounded-md overflow-hidden transition-all group",
         "border-2 border-transparent hover:border-white/30",
