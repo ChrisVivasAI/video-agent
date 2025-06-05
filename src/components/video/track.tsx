@@ -366,7 +366,7 @@ export function VideoTrackView({
         // Right handle: adjust duration only
         let newWidth = startWidth + deltaX;
         const minDuration = 1000;
-        const mediaDuration = resolveDuration(media) ?? 5000;
+        const mediaDuration = resolveDuration(effectiveMedia) ?? 5000;
         const maxDuration = mediaDuration;
 
         const timelineElement = trackElement.closest(".timeline-container");
