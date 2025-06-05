@@ -342,8 +342,8 @@ export default function ProfessionalTimeline() {
 
     // Project shortcuts
     onSave: () => console.log("Save"),
-    onUndo: () => console.log("Undo"),
-    onRedo: () => console.log("Redo"),
+    onUndo: timelineState.undo,
+    onRedo: timelineState.redo,
     onExport: () => console.log("Export"),
 
     // View shortcuts
