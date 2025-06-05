@@ -37,8 +37,6 @@ export default function BottomBar() {
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [magneticSnap, setMagneticSnap] = useState(true);
   const [selectedKeyframes, setSelectedKeyframes] = useState<string[]>([]);
-  const [undoStack, setUndoStack] = useState<any[]>([]);
-  const [redoStack, setRedoStack] = useState<any[]>([]);
 
   // Clipboard for copy/paste
   const [clipboard, setClipboard] = useState<any[]>([]);
@@ -253,13 +251,11 @@ export default function BottomBar() {
   };
 
   const handleUndo = () => {
-    // TODO: Implement undo
-    console.log("Undo");
+    timelineState.undo();
   };
 
   const handleRedo = () => {
-    // TODO: Implement redo
-    console.log("Redo");
+    timelineState.redo();
   };
 
   const handleCutAtPlayhead = async () => {
@@ -416,8 +412,8 @@ export default function BottomBar() {
         onSnapToggle={timelineState.toggleSnap}
         magneticSnap={timelineState.state.magneticSnap}
         onMagneticSnapToggle={timelineState.toggleMagneticSnap}
-        canUndo={undoStack.length > 0}
-        canRedo={redoStack.length > 0}
+        canUndo={timelineState.canUndo}
+        canRedo={timelineState.canRedo}
         onUndo={handleUndo}
         onRedo={handleRedo}
         selectedCount={timelineState.state.selectedClips.size}
@@ -436,8 +432,8 @@ export default function BottomBar() {
         onSnapToggle={handleSnapToggle}
         magneticSnap={magneticSnap}
         onMagneticSnapToggle={handleMagneticSnapToggle}
-        canUndo={undoStack.length > 0}
-        canRedo={redoStack.length > 0}
+        canUndo={timelineState.canUndo}
+        canRedo={timelineState.canRedo}
         onUndo={handleUndo}
         onRedo={handleRedo}
         selectedCount={selectedKeyframes.length}
