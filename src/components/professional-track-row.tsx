@@ -189,13 +189,13 @@ export function ProfessionalTrackRow({
 
   // Generate grid lines for visual reference
   const gridLines = [];
-  const gridInterval = totalDuration / 30; // 30 grid lines
-  for (let i = 0; i <= 30; i++) {
+  const gridCount = Math.ceil(totalDuration);
+  for (let i = 0; i <= gridCount; i++) {
     gridLines.push(
       <div
         key={i}
         className="absolute top-0 bottom-0 w-px bg-border opacity-20"
-        style={{ left: `${(i / 30) * 100}%` }}
+        style={{ left: `${(i / gridCount) * 100}%` }}
       />,
     );
   }

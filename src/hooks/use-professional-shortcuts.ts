@@ -59,7 +59,7 @@ export function useProfessionalShortcuts(handlers: ProfessionalShortcutsProps) {
       const { key, ctrlKey, metaKey, shiftKey, altKey } = event;
       const isCmd = ctrlKey || metaKey;
 
-      // Ignore shortcuts when typing in form fields or contenteditable regions
+// Ignore shortcuts when typing in form fields or contenteditable regions
       const target = event.target as HTMLElement | null;
       const active = document.activeElement as HTMLElement | null;
       const inEditable = (el: HTMLElement | null) =>

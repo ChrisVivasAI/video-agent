@@ -33,6 +33,12 @@ export type ApiInfo = {
   inputMap?: Record<string, string>;
   inputAsset?: InputAsset[];
   initialInput?: Record<string, unknown>;
+  /**
+   * Preset values for the generateData store when this model is selected.
+   * These values are not sent directly to the API unless they are part of the
+   * input object but rather serve as defaults in the UI.
+   */
+  preset?: Record<string, unknown>;
   cameraControl?: boolean;
   imageForFrame?: boolean;
   category: "image" | "video" | "music" | "voiceover";
@@ -46,6 +52,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     description: "Generate a video from a text prompt",
     cost: "",
     category: "image",
+    preset: {},
   },
   {
     endpointId: "fal-ai/imagen4/preview",
@@ -53,6 +60,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     description: "Generate images from a text prompt",
     cost: "",
     category: "image",
+    preset: {},
   },
   {
     endpointId: "fal-ai/flux/schnell",
@@ -60,6 +68,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     description: "Generate a video from a text prompt",
     cost: "",
     category: "image",
+    preset: {},
   },
   {
     endpointId: "fal-ai/flux-pro/v1.1-ultra",
@@ -67,6 +76,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     description: "Generate a video from a text prompt",
     cost: "",
     category: "image",
+    preset: {},
   },
   {
     endpointId: "fal-ai/stable-diffusion-v35-large",
@@ -74,6 +84,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     description: "Image quality, typography, complex prompt understanding",
     cost: "",
     category: "image",
+    preset: {},
   },
   {
     endpointId: "fal-ai/minimax/video-01-live",
@@ -82,6 +93,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     cost: "",
     category: "video",
     inputAsset: ["image"],
+    preset: { duration: 5 },
   },
   {
     endpointId: "fal-ai/hunyuan-video",
@@ -89,6 +101,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     description: "High visual quality, motion diversity and text alignment",
     cost: "",
     category: "video",
+    preset: { duration: 5 },
   },
   {
     endpointId: "fal-ai/kling-video/v1.5/pro",
@@ -97,6 +110,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     cost: "",
     category: "video",
     inputAsset: ["image"],
+    preset: { duration: 5 },
   },
   {
     endpointId: "fal-ai/kling-video/v1/standard/text-to-video",
@@ -105,6 +119,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     cost: "",
     category: "video",
     inputAsset: [],
+    preset: { duration: 5 },
     cameraControl: true,
   },
   {
@@ -114,6 +129,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     cost: "",
     category: "video",
     inputAsset: ["image"],
+    preset: { duration: 5 },
   },
   {
     endpointId: "fal-ai/minimax-music",
@@ -128,6 +144,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
         key: "reference_audio_url",
       },
     ],
+    preset: { duration: 30 },
   },
   {
     endpointId: "fal-ai/mmaudio-v2",
@@ -137,6 +154,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     cost: "",
     inputAsset: ["video"],
     category: "video",
+    preset: { duration: 5 },
   },
   {
     endpointId: "fal-ai/sync-lipsync",
@@ -146,6 +164,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     cost: "",
     inputAsset: ["video", "audio"],
     category: "video",
+    preset: { duration: 5 },
   },
   {
     endpointId: "fal-ai/stable-audio",
@@ -153,6 +172,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     description: "Stable Diffusion music creation with high-quality tracks",
     cost: "",
     category: "music",
+    preset: { duration: 30 },
   },
   {
     endpointId: "fal-ai/playht/tts/v3",
@@ -163,6 +183,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     initialInput: {
       voice: "Dexter (English (US)/American)",
     },
+    preset: { duration: 30, voice: "Dexter (English (US)/American)" },
   },
   {
     endpointId: "fal-ai/playai/tts/dialog",
@@ -186,6 +207,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
         },
       ],
     },
+    preset: { duration: 30 },
   },
   {
     endpointId: "fal-ai/f5-tts",
@@ -200,6 +222,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
       model_type: "F5-TTS",
       remove_silence: true,
     },
+    preset: { duration: 30 },
   },
   {
     endpointId: "fal-ai/veo2",
@@ -208,6 +231,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
       "Veo creates videos with realistic motion and high quality output, up to 4K.",
     cost: "",
     category: "video",
+    preset: { duration: 5 },
   },
   {
     endpointId: "fal-ai/ltx-video-v095/multiconditioning",
@@ -216,6 +240,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     cost: "",
     imageForFrame: true,
     category: "video",
+    preset: { duration: 5 },
   },
   {
     endpointId: "fal-ai/topaz/upscale/video",
@@ -226,5 +251,6 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     category: "video",
     prompt: false,
     inputAsset: ["video"],
+    preset: { duration: 5 },
   },
 ];

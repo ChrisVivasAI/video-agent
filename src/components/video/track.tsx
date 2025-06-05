@@ -12,7 +12,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { TrashIcon } from "lucide-react";
+import { TrashIcon, AlertCircleIcon } from "lucide-react";
 import {
   type HTMLAttributes,
   type MouseEventHandler,
@@ -39,6 +39,7 @@ type VideoTrackRowProps = {
     handle: "left" | "right",
     deltaX: number,
   ) => void;
+  totalDuration: number;
 } & HTMLAttributes<HTMLDivElement>;
 
 export function VideoTrackRow({
@@ -48,6 +49,7 @@ export function VideoTrackRow({
   onClipCut,
   onClipDrag,
   onClipResize,
+  totalDuration,
   ...props
 }: VideoTrackRowProps) {
   const { data: keyframes = [] } = useQuery({
@@ -74,8 +76,8 @@ export function VideoTrackRow({
           key={frame.id}
           className="absolute top-0 bottom-0"
           style={{
-            left: `${(frame.timestamp / 10 / 30).toFixed(2)}%`,
-            width: `${(frame.duration / 10 / 30).toFixed(2)}%`,
+            left: `${(frame.timestamp / 1000 / totalDuration) * 100}%`,
+            width: `${(frame.duration / 1000 / totalDuration) * 100}%`,
           }}
           track={data}
           frame={frame}
@@ -84,6 +86,7 @@ export function VideoTrackRow({
           onClipCut={onClipCut}
           onClipDrag={onClipDrag}
           onClipResize={onClipResize}
+          totalDuration={totalDuration}
         />
       ))}
     </div>
@@ -177,6 +180,7 @@ type VideoTrackViewProps = {
     handle: "left" | "right",
     deltaX: number,
   ) => void;
+  totalDuration: number;
 } & HTMLAttributes<HTMLDivElement>;
 
 export function VideoTrackView({
@@ -188,6 +192,7 @@ export function VideoTrackView({
   onClipCut,
   onClipDrag,
   onClipResize,
+  totalDuration,
   ...props
 }: VideoTrackViewProps) {
   const queryClient = useQueryClient();
@@ -207,6 +212,7 @@ export function VideoTrackView({
     (state) => state.selectedKeyframes ?? [],
   );
   const selectKeyframe = useVideoProjectStore((state) => state.selectKeyframe);
+  const setSelectedMediaId = useVideoProjectStore((s) => s.setSelectedMediaId);
 
   const isSelected =
     timelineState?.selectedClips.has(frame.id) ||
@@ -233,26 +239,41 @@ export function VideoTrackView({
   const { data: mediaItems = [] } = useProjectMediaItems(projectId);
 
   const media = mediaItems.find((item) => item.id === frame.data.mediaId);
-  // TODO improve missing data
-  if (!media) return null;
+  const isMissingMedia = !media || !media.metadata;
+  if (!media) {
+    console.error(
+      `Missing media with id ${frame.data.mediaId} for keyframe ${frame.id}`,
+    );
+  }
 
-  const mediaUrl = resolveMediaUrl(media);
+  const effectiveMedia: MediaItem = media ?? {
+    id: "missing",
+    projectId,
+    createdAt: 0,
+    kind: "uploaded",
+    url: "",
+    mediaType: "image",
+    status: "failed",
+    input: {},
+  };
+
+  const mediaUrl = resolveMediaUrl(effectiveMedia);
 
   const imageUrl = useMemo(() => {
-    if (media.mediaType === "image") {
+    if (effectiveMedia.mediaType === "image") {
       return mediaUrl;
     }
-    if (media.mediaType === "video") {
+    if (effectiveMedia.mediaType === "video") {
       return (
-        media.input?.image_url ||
-        media.metadata?.start_frame_url ||
-        media.metadata?.end_frame_url
+        effectiveMedia.input?.image_url ||
+        effectiveMedia.metadata?.start_frame_url ||
+        effectiveMedia.metadata?.end_frame_url
       );
     }
     return undefined;
-  }, [media, mediaUrl]);
+  }, [effectiveMedia, mediaUrl]);
 
-  const label = media.mediaType ?? "unknown";
+  const label = effectiveMedia.mediaType ?? "unknown";
 
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -304,10 +325,10 @@ export function VideoTrackView({
       const parentWidth = timelineElement
         ? (timelineElement as HTMLElement).offsetWidth
         : 1;
-      const newTimestamp = (newLeft / parentWidth) * 30;
+      const newTimestamp = (newLeft / parentWidth) * totalDuration;
       frame.timestamp = (newTimestamp < 0 ? 0 : newTimestamp) * 1000;
 
-      trackElement.style.left = `${((frame.timestamp / 30) * 100) / 1000}%`;
+      trackElement.style.left = `${(frame.timestamp / 1000 / totalDuration) * 100}%`;
       db.keyFrames.update(frame.id, { timestamp: frame.timestamp });
     };
 
@@ -345,25 +366,25 @@ export function VideoTrackView({
         // Right handle: adjust duration only
         let newWidth = startWidth + deltaX;
         const minDuration = 1000;
-        const mediaDuration = resolveDuration(media) ?? 5000;
-        const maxDuration = Math.min(mediaDuration, 30000);
+        const mediaDuration = resolveDuration(effectiveMedia) ?? 5000;
+        const maxDuration = mediaDuration;
 
         const timelineElement = trackElement.closest(".timeline-container");
         const parentWidth = timelineElement
           ? (timelineElement as HTMLElement).offsetWidth
           : 1;
-        let newDuration = (newWidth / parentWidth) * 30 * 1000;
+        let newDuration = (newWidth / parentWidth) * totalDuration * 1000;
 
         if (newDuration < minDuration) {
-          newWidth = (minDuration / 1000 / 30) * parentWidth;
+          newWidth = (minDuration / 1000 / totalDuration) * parentWidth;
           newDuration = minDuration;
         } else if (newDuration > maxDuration) {
-          newWidth = (maxDuration / 1000 / 30) * parentWidth;
+          newWidth = (maxDuration / 1000 / totalDuration) * parentWidth;
           newDuration = maxDuration;
         }
 
         frame.duration = newDuration;
-        trackElement.style.width = `${((frame.duration / 30) * 100) / 1000}%`;
+        trackElement.style.width = `${(frame.duration / 1000 / totalDuration) * 100}%`;
       } else {
         // Left handle: adjust timestamp and duration (trim in-point)
         let newLeft = startLeft + deltaX;
@@ -373,7 +394,10 @@ export function VideoTrackView({
           : 1;
 
         // Calculate new timestamp
-        const newTimestamp = Math.max(0, (newLeft / parentWidth) * 30 * 1000);
+        const newTimestamp = Math.max(
+          0,
+          (newLeft / parentWidth) * totalDuration * 1000,
+        );
         const timestampDelta = newTimestamp - startTimestamp;
 
         // Adjust duration to maintain end point
@@ -382,8 +406,8 @@ export function VideoTrackView({
         frame.timestamp = newTimestamp;
         frame.duration = newDuration;
 
-        trackElement.style.left = `${((frame.timestamp / 30) * 100) / 1000}%`;
-        trackElement.style.width = `${((frame.duration / 30) * 100) / 1000}%`;
+        trackElement.style.left = `${(frame.timestamp / 1000 / totalDuration) * 100}%`;
+        trackElement.style.width = `${(frame.duration / 1000 / totalDuration) * 100}%`;
       }
 
       // Call custom resize handler if provided
@@ -397,8 +421,8 @@ export function VideoTrackView({
       frame.duration = Math.round(frame.duration / 100) * 100;
       frame.timestamp = Math.round(frame.timestamp / 100) * 100;
 
-      trackElement.style.left = `${((frame.timestamp / 30) * 100) / 1000}%`;
-      trackElement.style.width = `${((frame.duration / 30) * 100) / 1000}%`;
+      trackElement.style.left = `${(frame.timestamp / 1000 / totalDuration) * 100}%`;
+      trackElement.style.width = `${(frame.duration / 1000 / totalDuration) * 100}%`;
 
       db.keyFrames.update(frame.id, {
         duration: frame.duration,
@@ -471,6 +495,7 @@ export function VideoTrackView({
             "bg-sky-600": track.type === "video",
             "bg-teal-500": track.type === "music",
             "bg-indigo-500": track.type === "voiceover",
+            "bg-muted/40 text-white": isMissingMedia,
           },
         )}
       >
@@ -483,7 +508,7 @@ export function VideoTrackView({
                 (typeof trackIcons)[typeof track.type]
               >)}
               <span className="line-clamp-1 truncate text-sm mb-[2px] w-full ">
-                {media.input?.prompt || label}
+                {effectiveMedia.input?.prompt || label}
               </span>
             </div>
             <div className="flex flex-row shrink-0 flex-1 items-center justify-end">
@@ -513,8 +538,26 @@ export function VideoTrackView({
               : undefined
           }
         >
-          {(media.mediaType === "music" || media.mediaType === "voiceover") && (
-            <AudioWaveform data={media} />
+          {(effectiveMedia.mediaType === "music" ||
+            effectiveMedia.mediaType === "voiceover") && (
+            <AudioWaveform data={effectiveMedia} />
+          )}
+
+          {isMissingMedia && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/40 text-xs z-20 pointer-events-none">
+              <AlertCircleIcon className="w-4 h-4 text-red-400" />
+              <span>Missing media</span>
+              <button
+                type="button"
+                className="underline pointer-events-auto"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedMediaId(frame.data.mediaId);
+                }}
+              >
+                Replace
+              </button>
+            </div>
           )}
 
           {/* Left resize handle (trim in-point) */}

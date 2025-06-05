@@ -1,9 +1,37 @@
 import Header from "@/components/header";
 import { Button } from "@/components/ui/button";
-import { fetchSharedVideo } from "@/lib/supabase";
+import { fetchSharedVideo, loadProjectFromSupabase } from "@/lib/supabase";
 import { DownloadIcon } from "lucide-react";
 import type { Metadata, ResolvingMetadata } from "next";
 import { notFound } from "next/navigation";
+
+async function getDurationFromUrl(url: string): Promise<number | null> {
+  try {
+    const res = await fetch(url, { headers: { Range: "bytes=0-100000" } });
+    if (!res.ok) {
+      return null;
+    }
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const mvhdIndex = buffer.indexOf("mvhd");
+    if (mvhdIndex === -1) {
+      return null;
+    }
+    const version = buffer.readUInt8(mvhdIndex + 4);
+    if (version === 0) {
+      const timescale = buffer.readUInt32BE(mvhdIndex + 12);
+      const duration = buffer.readUInt32BE(mvhdIndex + 16);
+      return timescale ? Math.floor(duration / timescale) : null;
+    }
+    if (version === 1) {
+      const timescale = buffer.readUInt32BE(mvhdIndex + 20);
+      const duration = Number(buffer.readBigUInt64BE(mvhdIndex + 24));
+      return timescale ? Math.floor(duration / timescale) : null;
+    }
+  } catch (err) {
+    console.error("Failed to parse duration", err);
+  }
+  return null;
+}
 
 type PageParams = {
   id: string;
@@ -22,6 +50,19 @@ export async function generateMetadata(
     return {
       title: "Video Not Found",
     };
+  }
+
+  let duration: number | null = null;
+  if (video.projectId) {
+    try {
+      const { project } = await loadProjectFromSupabase(video.projectId);
+      duration = project?.duration ?? null;
+    } catch (err) {
+      console.error("Failed to load project", err);
+    }
+  }
+  if (!duration) {
+    duration = await getDurationFromUrl(video.videoUrl);
   }
 
   const previousImages = (await parent).openGraph?.images || [];
@@ -72,9 +113,12 @@ export async function generateMetadata(
 
     // Additional metadata
     other: {
-      // TODO resolve duration
-      "og:video:duration": "15",
-      "video:duration": "15",
+      ...(duration
+        ? {
+            "og:video:duration": duration.toString(),
+            "video:duration": duration.toString(),
+          }
+        : {}),
       "video:release_date": new Date(video.createdAt).toISOString(),
     },
   };

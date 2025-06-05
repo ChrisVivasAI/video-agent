@@ -27,7 +27,6 @@ export default function BottomBar() {
   const formattedTimestamp =
     (playerCurrentTimestamp < 10 ? "0" : "") +
     playerCurrentTimestamp.toFixed(2);
-  const minTrackWidth = `${((2 / 30) * 100).toFixed(2)}%`;
   const [dragOverTracks, setDragOverTracks] = useState(false);
 
   // Professional timeline state
@@ -38,39 +37,9 @@ export default function BottomBar() {
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [magneticSnap, setMagneticSnap] = useState(true);
   const [selectedKeyframes, setSelectedKeyframes] = useState<string[]>([]);
-  const [undoStack, setUndoStack] = useState<any[]>([]);
-  const [redoStack, setRedoStack] = useState<any[]>([]);
 
   // Clipboard for copy/paste
   const [clipboard, setClipboard] = useState<any[]>([]);
-
-  const limitAllKeyframesToThirtySeconds = useMutation({
-    mutationFn: async () => {
-      const tracks = await db.tracks.tracksByProject(projectId);
-
-      let updatedCount = 0;
-
-      for (const track of tracks) {
-        const keyframes = await db.keyFrames.keyFramesByTrack(track.id);
-
-        for (const frame of keyframes) {
-          if (frame.duration > 30000) {
-            await db.keyFrames.update(frame.id, {
-              duration: 30000,
-            });
-            updatedCount++;
-          }
-        }
-      }
-
-      return updatedCount;
-    },
-    onSuccess: (updatedCount) => {
-      if (updatedCount > 0) {
-        refreshVideoCache(queryClient, projectId);
-      }
-    },
-  });
 
   const { data: tracks = [] } = useQuery({
     queryKey: queryKeys.projectTracks(projectId),
@@ -126,8 +95,13 @@ export default function BottomBar() {
       }
     });
 
-    return Math.min(Math.max(maxDuration, 5), 30); // Min 5 seconds, max 30 seconds
+    return Math.max(maxDuration, 5);
   }, [allKeyframes]);
+
+  const minTrackWidth = useMemo(
+    () => `${((2 / totalDuration) * 100).toFixed(2)}%`,
+    [totalDuration],
+  );
 
   // Timeline handlers
   const handleClipSelect = (clipId: string, multiSelect: boolean) => {
@@ -277,13 +251,11 @@ export default function BottomBar() {
   };
 
   const handleUndo = () => {
-    // TODO: Implement undo
-    console.log("Undo");
+    timelineState.undo();
   };
 
   const handleRedo = () => {
-    // TODO: Implement redo
-    console.log("Redo");
+    timelineState.redo();
   };
 
   const handleCutAtPlayhead = async () => {
@@ -413,7 +385,7 @@ export default function BottomBar() {
     await db.keyFrames.create({
       trackId: track.id,
       timestamp: playerCurrentTimestamp * 1000,
-      duration: Math.min(duration, 30000),
+      duration,
       data: {
         type:
           media.mediaType === "image"
@@ -440,8 +412,8 @@ export default function BottomBar() {
         onSnapToggle={timelineState.toggleSnap}
         magneticSnap={timelineState.state.magneticSnap}
         onMagneticSnapToggle={timelineState.toggleMagneticSnap}
-        canUndo={undoStack.length > 0}
-        canRedo={redoStack.length > 0}
+        canUndo={timelineState.canUndo}
+        canRedo={timelineState.canRedo}
         onUndo={handleUndo}
         onRedo={handleRedo}
         selectedCount={timelineState.state.selectedClips.size}
@@ -460,8 +432,8 @@ export default function BottomBar() {
         onSnapToggle={handleSnapToggle}
         magneticSnap={magneticSnap}
         onMagneticSnapToggle={handleMagneticSnapToggle}
-        canUndo={undoStack.length > 0}
-        canRedo={redoStack.length > 0}
+        canUndo={timelineState.canUndo}
+        canRedo={timelineState.canRedo}
         onUndo={handleUndo}
         onRedo={handleRedo}
         selectedCount={selectedKeyframes.length}
@@ -476,16 +448,6 @@ export default function BottomBar() {
           <span className="text-xs text-muted-foreground">
             {formattedTimestamp}s
           </span>
-          <button
-            type="button"
-            className="text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => limitAllKeyframesToThirtySeconds.mutate()}
-            disabled={limitAllKeyframesToThirtySeconds.isPending}
-          >
-            {limitAllKeyframesToThirtySeconds.isPending
-              ? "Limiting..."
-              : "Limit to 30s"}
-          </button>
         </div>
       </div>
 
@@ -509,10 +471,10 @@ export default function BottomBar() {
           <div
             className="absolute z-[32] top-6 bottom-0 w-[2px] bg-white/30 ms-4"
             style={{
-              left: `${((playerCurrentTimestamp / 30) * 100).toFixed(2)}%`,
+              left: `${((playerCurrentTimestamp / totalDuration) * 100).toFixed(2)}%`,
             }}
           />
-          <TimelineRuler className="z-30 pointer-events-none" />
+          <TimelineRuler duration={totalDuration} className="z-30 pointer-events-none" />
           <div className="flex timeline-container flex-col h-full mx-4 mt-10 gap-2 z-[31] pb-2">
             {Object.values(trackObj).map((track, index) =>
               track ? (
@@ -527,6 +489,7 @@ export default function BottomBar() {
                   onClipCut={handleClipCut}
                   onClipDrag={handleClipDrag}
                   onClipResize={handleClipResize}
+                  totalDuration={totalDuration}
                   style={{
                     minWidth: minTrackWidth,
                   }}
