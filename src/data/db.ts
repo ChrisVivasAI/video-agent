@@ -72,9 +72,6 @@ export const db = {
       const db = await open();
       return db.put("tracks", {
         id: crypto.randomUUID(),
-        muted: false,
-        solo: false,
-        volume: 100,
         ...track,
       });
     },
