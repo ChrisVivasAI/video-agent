@@ -48,6 +48,8 @@ import {
   SkipForwardIcon,
   PlayIcon,
   PauseIcon,
+  Undo2Icon,
+  Redo2Icon,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
@@ -284,6 +286,14 @@ export default function ProfessionalTimeline() {
     player?.seekTo(totalDuration * 30);
   }, [totalDuration, setPlayerCurrentTimestamp, player]);
 
+  const handleUndo = () => {
+    timelineState.undo();
+  };
+
+  const handleRedo = () => {
+    timelineState.redo();
+  };
+
   // Timeline controls
   const handleZoomIn = () => setTimelineZoom((prev) => Math.min(prev * 1.2, 5));
   const handleZoomOut = () =>
@@ -342,8 +352,8 @@ export default function ProfessionalTimeline() {
 
     // Project shortcuts
     onSave: () => console.log("Save"),
-    onUndo: () => console.log("Undo"),
-    onRedo: () => console.log("Redo"),
+    onUndo: handleUndo,
+    onRedo: handleRedo,
     onExport: () => console.log("Export"),
 
     // View shortcuts
@@ -509,6 +519,27 @@ export default function ProfessionalTimeline() {
             className="h-8 px-3"
           >
             Magnetic
+          </Button>
+
+          <Separator orientation="vertical" className="h-6 mx-2" />
+
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleUndo}
+            disabled={!timelineState.canUndo}
+            className="h-8 w-8 p-0"
+          >
+            <Undo2Icon className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleRedo}
+            disabled={!timelineState.canRedo}
+            className="h-8 w-8 p-0"
+          >
+            <Redo2Icon className="w-4 h-4" />
           </Button>
         </div>
 

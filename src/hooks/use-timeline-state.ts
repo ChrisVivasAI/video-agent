@@ -50,15 +50,34 @@ export function useTimelineState() {
     cutPreview: null,
   });
 
+  const [undoStack, setUndoStack] = useState<TimelineState[]>([]);
+  const [redoStack, setRedoStack] = useState<TimelineState[]>([]);
+
+  const updateState = useCallback(
+    (updater: (prev: TimelineState) => TimelineState) => {
+      setState((prev) => {
+        const newState = updater(prev);
+        setUndoStack((u) => [...u, prev]);
+        setRedoStack([]);
+        return newState;
+      });
+    },
+    [],
+  );
+
   // Tool management
-  const setActiveTool = useCallback((tool: TimelineTool) => {
-    setState((prev) => ({ ...prev, activeTool: tool }));
-  }, []);
+  const setActiveTool = useCallback(
+    (tool: TimelineTool) => {
+      updateState((prev) => ({ ...prev, activeTool: tool }));
+    },
+    [updateState],
+  );
 
   // Selection management
-  const selectClip = useCallback((clipId: string, multiSelect = false) => {
-    setState((prev) => {
-      const newSelected = new Set(prev.selectedClips);
+  const selectClip = useCallback(
+    (clipId: string, multiSelect = false) => {
+      updateState((prev) => {
+        const newSelected = new Set(prev.selectedClips);
 
       if (multiSelect) {
         if (newSelected.has(clipId)) {
@@ -71,55 +90,66 @@ export function useTimelineState() {
         newSelected.add(clipId);
       }
 
-      return { ...prev, selectedClips: newSelected };
-    });
-  }, []);
+        return { ...prev, selectedClips: newSelected };
+      });
+    },
+    [updateState],
+  );
 
-  const selectMultipleClips = useCallback((clipIds: string[]) => {
-    setState((prev) => ({
-      ...prev,
-      selectedClips: new Set(clipIds),
-    }));
-  }, []);
+  const selectMultipleClips = useCallback(
+    (clipIds: string[]) => {
+      updateState((prev) => ({
+        ...prev,
+        selectedClips: new Set(clipIds),
+      }));
+    },
+    [updateState],
+  );
 
   const clearSelection = useCallback(() => {
-    setState((prev) => ({
+    updateState((prev) => ({
       ...prev,
       selectedClips: new Set(),
     }));
-  }, []);
+  }, [updateState]);
 
   // Selection box
-  const startSelectionBox = useCallback((x: number, y: number) => {
-    setState((prev) => ({
-      ...prev,
-      selectionBox: {
-        active: true,
-        startX: x,
-        startY: y,
-        currentX: x,
-        currentY: y,
-      },
-    }));
-  }, []);
-
-  const updateSelectionBox = useCallback((x: number, y: number) => {
-    setState((prev) => {
-      if (!prev.selectionBox) return prev;
-      return {
+  const startSelectionBox = useCallback(
+    (x: number, y: number) => {
+      updateState((prev) => ({
         ...prev,
         selectionBox: {
-          ...prev.selectionBox,
+          active: true,
+          startX: x,
+          startY: y,
           currentX: x,
           currentY: y,
         },
-      };
-    });
-  }, []);
+      }));
+    },
+    [updateState],
+  );
+
+  const updateSelectionBox = useCallback(
+    (x: number, y: number) => {
+      updateState((prev) => {
+        if (!prev.selectionBox) return prev;
+        return {
+          ...prev,
+          selectionBox: {
+            ...prev.selectionBox,
+            currentX: x,
+            currentY: y,
+          },
+        };
+      });
+    },
+    [updateState],
+  );
 
   const endSelectionBox = useCallback(() => {
-    setState((prev) => ({ ...prev, selectionBox: null }));
-  }, []);
+    updateState((prev) => ({ ...prev, selectionBox: null }));
+  }, [updateState]);
 
   // Drag state
   const startDrag = useCallback(
@@ -130,7 +160,7 @@ export function useTimelineState() {
       startTimestamp: number,
       startDuration: number,
     ) => {
-      setState((prev) => ({
+      updateState((prev) => ({
         ...prev,
         dragState: {
           clipId,
@@ -141,33 +171,56 @@ export function useTimelineState() {
         },
       }));
     },
-    [],
+    [updateState],
   );
 
   const endDrag = useCallback(() => {
-    setState((prev) => ({ ...prev, dragState: null }));
-  }, []);
+    updateState((prev) => ({ ...prev, dragState: null }));
+  }, [updateState]);
 
   // Cut preview
-  const showCutPreview = useCallback((trackId: string, position: number) => {
-    setState((prev) => ({
-      ...prev,
-      cutPreview: { active: true, trackId, position },
-    }));
-  }, []);
+  const showCutPreview = useCallback(
+    (trackId: string, position: number) => {
+      updateState((prev) => ({
+        ...prev,
+        cutPreview: { active: true, trackId, position },
+      }));
+    },
+    [updateState],
+  );
 
   const hideCutPreview = useCallback(() => {
-    setState((prev) => ({ ...prev, cutPreview: null }));
-  }, []);
+    updateState((prev) => ({ ...prev, cutPreview: null }));
+  }, [updateState]);
 
   // Snap settings
   const toggleSnap = useCallback(() => {
-    setState((prev) => ({ ...prev, snapEnabled: !prev.snapEnabled }));
-  }, []);
+    updateState((prev) => ({ ...prev, snapEnabled: !prev.snapEnabled }));
+  }, [updateState]);
 
   const toggleMagneticSnap = useCallback(() => {
-    setState((prev) => ({ ...prev, magneticSnap: !prev.magneticSnap }));
-  }, []);
+    updateState((prev) => ({ ...prev, magneticSnap: !prev.magneticSnap }));
+  }, [updateState]);
+
+  const undo = useCallback(() => {
+    setUndoStack((hist) => {
+      if (hist.length === 0) return hist;
+      const previous = hist[hist.length - 1];
+      setRedoStack((r) => [state, ...r]);
+      setState(previous);
+      return hist.slice(0, -1);
+    });
+  }, [state]);
+
+  const redo = useCallback(() => {
+    setRedoStack((r) => {
+      if (r.length === 0) return r;
+      const next = r[0];
+      setUndoStack((hist) => [...hist, state]);
+      setState(next);
+      return r.slice(1);
+    });
+  }, [state]);
 
   return {
     state,
@@ -190,5 +243,9 @@ export function useTimelineState() {
     // Snap
     toggleSnap,
     toggleMagneticSnap,
+    undo,
+    redo,
+    canUndo: undoStack.length > 0,
+    canRedo: redoStack.length > 0,
   };
 }
