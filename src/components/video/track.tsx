@@ -12,7 +12,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { TrashIcon } from "lucide-react";
+import { TrashIcon, AlertCircleIcon } from "lucide-react";
 import {
   type HTMLAttributes,
   type MouseEventHandler,
@@ -212,6 +212,7 @@ export function VideoTrackView({
     (state) => state.selectedKeyframes ?? [],
   );
   const selectKeyframe = useVideoProjectStore((state) => state.selectKeyframe);
+  const setSelectedMediaId = useVideoProjectStore((s) => s.setSelectedMediaId);
 
   const isSelected =
     timelineState?.selectedClips.has(frame.id) ||
@@ -238,26 +239,41 @@ export function VideoTrackView({
   const { data: mediaItems = [] } = useProjectMediaItems(projectId);
 
   const media = mediaItems.find((item) => item.id === frame.data.mediaId);
-  // TODO improve missing data
-  if (!media) return null;
+  const isMissingMedia = !media || !media.metadata;
+  if (!media) {
+    console.error(
+      `Missing media with id ${frame.data.mediaId} for keyframe ${frame.id}`,
+    );
+  }
 
-  const mediaUrl = resolveMediaUrl(media);
+  const effectiveMedia =
+    media ?? {
+      id: "missing", // placeholder object
+      projectId,
+      createdAt: 0,
+      kind: "generated" as const,
+      mediaType: "image" as const,
+      status: "failed" as const,
+      input: { prompt: "missing" },
+    };
+
+  const mediaUrl = resolveMediaUrl(effectiveMedia);
 
   const imageUrl = useMemo(() => {
-    if (media.mediaType === "image") {
+    if (effectiveMedia.mediaType === "image") {
       return mediaUrl;
     }
-    if (media.mediaType === "video") {
+    if (effectiveMedia.mediaType === "video") {
       return (
-        media.input?.image_url ||
-        media.metadata?.start_frame_url ||
-        media.metadata?.end_frame_url
+        effectiveMedia.input?.image_url ||
+        effectiveMedia.metadata?.start_frame_url ||
+        effectiveMedia.metadata?.end_frame_url
       );
     }
     return undefined;
-  }, [media, mediaUrl]);
+  }, [effectiveMedia, mediaUrl]);
 
-  const label = media.mediaType ?? "unknown";
+  const label = effectiveMedia.mediaType ?? "unknown";
 
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -476,6 +492,7 @@ export function VideoTrackView({
             "bg-sky-600": track.type === "video",
             "bg-teal-500": track.type === "music",
             "bg-indigo-500": track.type === "voiceover",
+            "bg-muted/40 text-white": isMissingMedia,
           },
         )}
       >
@@ -488,7 +505,7 @@ export function VideoTrackView({
                 (typeof trackIcons)[typeof track.type]
               >)}
               <span className="line-clamp-1 truncate text-sm mb-[2px] w-full ">
-                {media.input?.prompt || label}
+                {effectiveMedia.input?.prompt || label}
               </span>
             </div>
             <div className="flex flex-row shrink-0 flex-1 items-center justify-end">
@@ -518,8 +535,26 @@ export function VideoTrackView({
               : undefined
           }
         >
-          {(media.mediaType === "music" || media.mediaType === "voiceover") && (
-            <AudioWaveform data={media} />
+          {(effectiveMedia.mediaType === "music" ||
+            effectiveMedia.mediaType === "voiceover") && (
+            <AudioWaveform data={effectiveMedia} />
+          )}
+
+          {isMissingMedia && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/40 text-xs z-20 pointer-events-none">
+              <AlertCircleIcon className="w-4 h-4 text-red-400" />
+              <span>Missing media</span>
+              <button
+                type="button"
+                className="underline pointer-events-auto"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedMediaId(frame.data.mediaId);
+                }}
+              >
+                Replace
+              </button>
+            </div>
           )}
 
           {/* Left resize handle (trim in-point) */}
