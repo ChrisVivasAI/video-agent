@@ -3,6 +3,7 @@ import {
   TRACK_TYPE_ORDER,
   type MediaItem,
   type VideoTrack,
+  type VideoKeyFrame,
 } from "@/data/schema";
 import { useProjectId, useVideoProjectStore } from "@/data/store";
 import { cn, resolveDuration } from "@/lib/utils";
@@ -130,11 +131,23 @@ export default function BottomBar() {
       duration: splitPoint,
     });
 
-    // Create second part
-    await db.keyFrames.create(secondPart);
+    const newFrame = { id: crypto.randomUUID(), ...secondPart } as VideoKeyFrame;
+    await db.keyFrames.create(newFrame);
 
-    // Refresh cache
     refreshVideoCache(queryClient, projectId);
+    timelineState.recordAction({
+      kind: "keyframe",
+      undo: async () => {
+        await db.keyFrames.delete(newFrame.id);
+        await db.keyFrames.update(clipId, keyframe);
+        refreshVideoCache(queryClient, projectId);
+      },
+      redo: async () => {
+        await db.keyFrames.update(clipId, { duration: splitPoint });
+        await db.keyFrames.create(newFrame);
+        refreshVideoCache(queryClient, projectId);
+      },
+    });
   };
 
   const handleClipDrag = (clipId: string, deltaX: number) => {
@@ -197,11 +210,29 @@ export default function BottomBar() {
 
   const handleDeleteSelected = async () => {
     const selectedIds = Array.from(timelineState.state.selectedClips);
+    const frames: VideoKeyFrame[] = [];
     for (const id of selectedIds) {
-      await db.keyFrames.delete(id);
+      const frame = await db.keyFrames.find(id);
+      if (frame) {
+        frames.push(frame);
+        await db.keyFrames.delete(id);
+      }
     }
     timelineState.clearSelection();
     refreshVideoCache(queryClient, projectId);
+    if (frames.length > 0) {
+      timelineState.recordAction({
+        kind: "keyframe",
+        undo: async () => {
+          for (const f of frames) await db.keyFrames.create(f);
+          refreshVideoCache(queryClient, projectId);
+        },
+        redo: async () => {
+          for (const f of frames) await db.keyFrames.delete(f.id);
+          refreshVideoCache(queryClient, projectId);
+        },
+      });
+    }
   };
 
   // Clipboard handlers
@@ -217,16 +248,32 @@ export default function BottomBar() {
     if (clipboard.length === 0) return;
 
     const currentTime = playerCurrentTimestamp * 1000;
+    const created: VideoKeyFrame[] = [];
     for (const keyframe of clipboard) {
       if (keyframe) {
-        await db.keyFrames.create({
+        const frame = {
           ...keyframe,
           id: crypto.randomUUID(),
           timestamp: currentTime,
-        });
+        } as VideoKeyFrame;
+        await db.keyFrames.create(frame);
+        created.push(frame);
       }
     }
     refreshVideoCache(queryClient, projectId);
+    if (created.length > 0) {
+      timelineState.recordAction({
+        kind: "keyframe",
+        undo: async () => {
+          for (const f of created) await db.keyFrames.delete(f.id);
+          refreshVideoCache(queryClient, projectId);
+        },
+        redo: async () => {
+          for (const f of created) await db.keyFrames.create(f);
+          refreshVideoCache(queryClient, projectId);
+        },
+      });
+    }
   };
 
   const handleCut = async () => {
@@ -236,18 +283,35 @@ export default function BottomBar() {
 
   const handleDuplicate = async () => {
     const selectedIds = Array.from(timelineState.state.selectedClips);
+    const created: VideoKeyFrame[] = [];
     for (const id of selectedIds) {
       const keyframe = await db.keyFrames.find(id);
       if (keyframe) {
-        await db.keyFrames.create({
+        const newFrame = {
+          id: crypto.randomUUID(),
           timestamp: keyframe.timestamp + keyframe.duration,
           duration: keyframe.duration,
           trackId: keyframe.trackId,
           data: keyframe.data,
-        });
+        } as VideoKeyFrame;
+        await db.keyFrames.create(newFrame);
+        created.push(newFrame);
       }
     }
     refreshVideoCache(queryClient, projectId);
+    if (created.length > 0) {
+      timelineState.recordAction({
+        kind: "keyframe",
+        undo: async () => {
+          for (const f of created) await db.keyFrames.delete(f.id);
+          refreshVideoCache(queryClient, projectId);
+        },
+        redo: async () => {
+          for (const f of created) await db.keyFrames.create(f);
+          refreshVideoCache(queryClient, projectId);
+        },
+      });
+    }
   };
 
   const handleUndo = () => {
@@ -382,7 +446,8 @@ export default function BottomBar() {
     if (!track) return; // Safety check
 
     const duration = resolveDuration(media) ?? 5000;
-    await db.keyFrames.create({
+    const frame = {
+      id: crypto.randomUUID(),
       trackId: track.id,
       timestamp: playerCurrentTimestamp * 1000,
       duration,
@@ -397,9 +462,21 @@ export default function BottomBar() {
         prompt: media.input?.prompt || "",
         url: media.url || "",
       },
-    });
+    } as VideoKeyFrame;
+    await db.keyFrames.create(frame);
 
     refreshVideoCache(queryClient, projectId);
+    timelineState.recordAction({
+      kind: "keyframe",
+      undo: async () => {
+        await db.keyFrames.delete(frame.id);
+        refreshVideoCache(queryClient, projectId);
+      },
+      redo: async () => {
+        await db.keyFrames.create(frame);
+        refreshVideoCache(queryClient, projectId);
+      },
+    });
   };
 
   return (

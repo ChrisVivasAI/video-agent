@@ -95,12 +95,13 @@ export const db = {
       );
       return result.toSorted((a, b) => a.timestamp - b.timestamp);
     },
-    async create(keyFrame: Omit<VideoKeyFrame, "id">) {
+    async create(keyFrame: Omit<VideoKeyFrame, "id"> | VideoKeyFrame) {
       const db = await open();
-      return db.put("keyFrames", {
-        id: crypto.randomUUID(),
-        ...keyFrame,
-      });
+      const record = {
+        id: "id" in keyFrame ? keyFrame.id : crypto.randomUUID(),
+        ...(keyFrame as any),
+      } as VideoKeyFrame;
+      return db.put("keyFrames", record);
     },
     async update(id: string, keyFrame: Partial<VideoKeyFrame>) {
       const db = await open();

@@ -105,11 +105,11 @@ export function ProfessionalTrackRow({
           }
         }
 
-        // Create keyframe at drop position
-        await db.keyFrames.create({
+        const frame = {
+          id: crypto.randomUUID(),
           trackId: track.id,
           timestamp: Math.max(0, timestamp),
-          duration: 5000, // Default 5 seconds
+          duration: 5000,
           data: {
             type:
               media.mediaType === "image"
@@ -121,9 +121,21 @@ export function ProfessionalTrackRow({
             prompt: media.input?.prompt || "",
             url: media.url || "",
           },
-        });
+        } as VideoKeyFrame;
+        await db.keyFrames.create(frame);
 
         refreshVideoCache(queryClient, track.projectId);
+        timelineState.recordAction({
+          kind: "keyframe",
+          undo: async () => {
+            await db.keyFrames.delete(frame.id);
+            refreshVideoCache(queryClient, track.projectId);
+          },
+          redo: async () => {
+            await db.keyFrames.create(frame);
+            refreshVideoCache(queryClient, track.projectId);
+          },
+        });
       } catch (error) {
         console.warn("Failed to drop media:", error);
       }
@@ -140,7 +152,7 @@ export function ProfessionalTrackRow({
   );
 
   const handleTrackClick = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       if (activeTool === "razor") {
         // Handle razor tool click
         const rect = e.currentTarget.getBoundingClientRect();
@@ -157,21 +169,32 @@ export function ProfessionalTrackRow({
             // Split the clip
             const splitPoint = clickTime - frame.timestamp;
             if (splitPoint > 100 && splitPoint < frame.duration - 100) {
-              // Minimum 100ms clips
-              // Create second part
-              await db.keyFrames.create({
+              const before = { ...frame };
+              const newFrame = {
+                id: crypto.randomUUID(),
                 trackId: track.id,
                 timestamp: clickTime,
                 duration: frame.duration - splitPoint,
                 data: frame.data,
-              });
+              } as VideoKeyFrame;
+              await db.keyFrames.create(newFrame);
 
-              // Update first part
-              await db.keyFrames.update(frame.id, {
-                duration: splitPoint,
-              });
+              await db.keyFrames.update(frame.id, { duration: splitPoint });
 
               refreshVideoCache(queryClient, track.projectId);
+              timelineState.recordAction({
+                kind: "keyframe",
+                undo: async () => {
+                  await db.keyFrames.delete(newFrame.id);
+                  await db.keyFrames.update(frame.id, before);
+                  refreshVideoCache(queryClient, track.projectId);
+                },
+                redo: async () => {
+                  await db.keyFrames.update(frame.id, { duration: splitPoint });
+                  await db.keyFrames.create(newFrame);
+                  refreshVideoCache(queryClient, track.projectId);
+                },
+              });
             }
           }
         });
