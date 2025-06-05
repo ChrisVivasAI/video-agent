@@ -59,15 +59,17 @@ export function useProfessionalShortcuts(handlers: ProfessionalShortcutsProps) {
       const { key, ctrlKey, metaKey, shiftKey, altKey } = event;
       const isCmd = ctrlKey || metaKey;
 
-      // Ignore shortcuts when a form element or contenteditable element is active
+// Ignore shortcuts when typing in form fields or contenteditable regions
+      const target = event.target as HTMLElement | null;
       const active = document.activeElement as HTMLElement | null;
-      if (
-        active &&
-        (active.tagName === "INPUT" ||
-          active.tagName === "TEXTAREA" ||
-          active.tagName === "SELECT" ||
-          active.isContentEditable)
-      ) {
+      const inEditable = (el: HTMLElement | null) =>
+        !!el?.closest(
+          "input, textarea, select, [contenteditable], [contenteditable='true']",
+        ) || el?.isContentEditable;
+      if (inEditable(target) || inEditable(active)) {
+        // Let the element handle the key (e.g., Backspace in an input) but
+        // prevent global shortcuts from firing
+        event.stopPropagation();
         return;
       }
 
