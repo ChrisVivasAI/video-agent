@@ -162,15 +162,16 @@ export default function RightPanel({
     );
 
     const initialInput = endpoint?.initialInput || {};
+    const preset = endpoint?.preset || {};
 
     if (
       (mediaType === "video" &&
         endpoint?.endpointId === "fal-ai/hunyuan-video") ||
       mediaType !== "video"
     ) {
-      setGenerateData({ image: null, ...initialInput });
+      setGenerateData({ image: null, ...preset, ...initialInput });
     } else {
-      setGenerateData({ ...initialInput });
+      setGenerateData({ ...preset, ...initialInput });
     }
 
     setEndpointId(endpoint?.endpointId ?? AVAILABLE_ENDPOINTS[0].endpointId);
@@ -458,7 +459,8 @@ export default function RightPanel({
                 );
 
                 const initialInput = endpoint?.initialInput || {};
-                setGenerateData({ ...initialInput });
+                const preset = endpoint?.preset || {};
+                setGenerateData({ ...preset, ...initialInput });
               }}
             />
           </div>
