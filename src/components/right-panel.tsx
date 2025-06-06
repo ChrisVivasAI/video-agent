@@ -175,6 +175,7 @@ export default function RightPanel({
   };
   // Common input fields shared by most endpoints
   interface BaseInput {
+    [key: string]: unknown;
     prompt: string;
     image_url?: File | string | null;
     video_url?: File | string | null;
