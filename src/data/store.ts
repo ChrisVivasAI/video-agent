@@ -33,6 +33,11 @@ interface VideoProjectProps {
   generateData: GenerateData;
   exportDialogOpen: boolean;
   endpointId: string;
+  /**
+   * Counter used to emit generation events. Components can subscribe to this
+   * value to react when a new job has been created.
+   */
+  generationCount: number;
 }
 
 interface VideoProjectState extends VideoProjectProps {
@@ -73,6 +78,7 @@ const DEFAULT_PROPS: VideoProjectProps = {
     audio_url: null,
   },
   exportDialogOpen: false,
+  generationCount: 0,
 };
 
 type VideoProjectStore = ReturnType<typeof createVideoProjectStore>;
@@ -104,8 +110,8 @@ export const createVideoProjectStore = (
           voice: "",
         },
       }),
-    // [NOTE]: This is a placeholder function
-    onGenerate: () => {},
+    onGenerate: () =>
+      set((s) => ({ generationCount: s.generationCount + 1 })),
     setPlayer: (player: PlayerRef) => set({ player }),
     setPlayerCurrentTimestamp: (playerCurrentTimestamp: number) =>
       set({ playerCurrentTimestamp }),

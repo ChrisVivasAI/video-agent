@@ -275,6 +275,7 @@ export default function RightPanel({
       onSuccess: async () => {
         if (!createJob.isError) {
           handleOnOpenChange(false);
+          videoProjectStore.onGenerate();
         }
       },
       onError: (error) => {
@@ -286,10 +287,6 @@ export default function RightPanel({
       },
     });
   };
-
-  useEffect(() => {
-    videoProjectStore.onGenerate = handleOnGenerate;
-  }, [handleOnGenerate]);
 
   const handleSelectMedia = (media: MediaItem) => {
     const asset = endpoint?.inputAsset?.find((item) => {
