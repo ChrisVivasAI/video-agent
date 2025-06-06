@@ -130,7 +130,6 @@ export function MediaGallerySheet({
   const setGenerateMediaType = useVideoProjectStore(
     (s) => s.setGenerateMediaType,
   );
-  const onGenerate = useVideoProjectStore((s) => s.onGenerate);
 
   const handleUpscaleDialog = () => {
     setGenerateMediaType("video");
@@ -171,7 +170,7 @@ export function MediaGallerySheet({
     setEndpointId(selectedMedia.endpointId as string);
     setGenerateData(selectedMedia.input || {});
     setSelectedMediaId(null);
-    onGenerate();
+    openGenerateDialog();
   };
 
   // Event handlers
