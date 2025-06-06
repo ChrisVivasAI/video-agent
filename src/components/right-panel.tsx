@@ -164,20 +164,17 @@ export default function RightPanel({
     const initialInput = endpoint?.initialInput || {};
     const preset = endpoint?.preset || {};
 
-    if (
-      (mediaType === "video" &&
-        endpoint?.endpointId === "fal-ai/hunyuan-video") ||
-      mediaType !== "video"
-    ) {
-      setGenerateData({ image: null, ...preset, ...initialInput });
-    } else {
-      setGenerateData({ ...preset, ...initialInput });
-    }
+    // Clear or initialise asset fields depending on the selected endpoint
+    const assetDefaults: Record<string, unknown> = { ...preset, ...initialInput };
+    endpoint?.inputAsset?.forEach((asset) => {
+      assetDefaults[getAssetKey(asset)] = null;
+    });
+    setGenerateData(assetDefaults);
 
     setEndpointId(endpoint?.endpointId ?? AVAILABLE_ENDPOINTS[0].endpointId);
   };
-  // TODO improve model-specific parameters
-  type InputType = {
+  // Common input fields shared by most endpoints
+  interface BaseInput {
     prompt: string;
     image_url?: File | string | null;
     video_url?: File | string | null;
@@ -196,7 +193,53 @@ export default function RightPanel({
       movement_value: number;
       movement_type: string;
     };
-  };
+  }
+
+  // Endpoint specific input interfaces. These extend the BaseInput as most
+  // endpoints share the same set of parameters. Having separate interfaces
+  // allows TypeScript to discriminate based on the selected endpoint.
+  interface FluxDevInput extends BaseInput {}
+  interface Imagen4PreviewInput extends BaseInput {}
+  interface FluxSchnellInput extends BaseInput {}
+  interface FluxProInput extends BaseInput {}
+  interface StableDiffusion35Input extends BaseInput {}
+  interface MinimaxVideo01Input extends BaseInput {}
+  interface HunyuanVideoInput extends BaseInput {}
+  interface Kling15ProInput extends BaseInput {}
+  interface Kling10StdInput extends BaseInput {}
+  interface LumaDreamMachineInput extends BaseInput {}
+  interface MinimaxMusicInput extends BaseInput {}
+  interface MMAudioV2Input extends BaseInput {}
+  interface SyncLipSyncInput extends BaseInput {}
+  interface StableAudioInput extends BaseInput {}
+  interface PlayHTTTSV3Input extends BaseInput {}
+  interface PlayAITTSDialogInput extends BaseInput {}
+  interface F5TTSInput extends BaseInput {}
+  interface Veo2Input extends BaseInput {}
+  interface LtxVideoMCInput extends BaseInput {}
+  interface TopazUpscaleInput extends BaseInput {}
+
+  type InputType =
+    | FluxDevInput
+    | Imagen4PreviewInput
+    | FluxSchnellInput
+    | FluxProInput
+    | StableDiffusion35Input
+    | MinimaxVideo01Input
+    | HunyuanVideoInput
+    | Kling15ProInput
+    | Kling10StdInput
+    | LumaDreamMachineInput
+    | MinimaxMusicInput
+    | MMAudioV2Input
+    | SyncLipSyncInput
+    | StableAudioInput
+    | PlayHTTTSV3Input
+    | PlayAITTSDialogInput
+    | F5TTSInput
+    | Veo2Input
+    | LtxVideoMCInput
+    | TopazUpscaleInput;
 
   const aspectRatioMap = {
     "16:9": { image: "landscape_16_9", video: "16:9" },
